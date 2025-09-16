@@ -1,3 +1,5 @@
+# Streamlit Documentation: https://docs.streamlit.io/get-started 
+
 import streamlit as st
 
 st.title("ResearchConnect SCSU")
