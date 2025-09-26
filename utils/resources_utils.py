@@ -2,7 +2,7 @@
 
 """
 Resources utilities for ResearchConnect SCSU
-Handles campus resource data for Innovation Hub, OCPD, and STEM Centers
+Handles campus resource data for Innovation Hub, JOBSs, OCPD, and STEM Centers
 """
 
 import datetime

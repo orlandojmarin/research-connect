@@ -109,11 +109,6 @@ def render_stem_centers():
             st.write("**🎯 Services & Programs:**")
             for service in stem_info['stem_center']['services']:
                 st.write(f"• {service}")
-            
-            # if stem_info['stem_center'].get('research_opportunities'):
-            #     st.write("**🔬 Research Opportunities:**")
-            #     for opportunity in stem_info['stem_center']['research_opportunities']:
-            #         st.write(f"🧪 {opportunity}")
         
         with col2:
             with st.container(border=True):
@@ -121,38 +116,6 @@ def render_stem_centers():
                 contact = stem_info['stem_center']['contact']
                 st.write(f"**Email:** {contact['email']}")
                 st.write(f"**Website:** {contact['website']}")
-        
-        # st.divider()
-        
-        # # Other STEM Offices
-        # st.subheader("🏢 Related STEM Offices")
-        
-        # offices = stem_info.get('other_offices', [])
-        # for i, office in enumerate(offices):
-        #     col1, col2 = st.columns([3, 1])
-            
-        #     with col1:
-        #         st.write(f"**{office['name']}**")
-        #         st.write(office['description'])
-                
-        #         if office.get('services'):
-        #             st.write("*Services:*")
-        #             for service in office['services']:
-        #                 st.write(f"  • {service}")
-            
-        #     with col2:
-        #         st.write(f"📍 {office['location']}")
-        #         if office.get('phone'):
-        #             st.write(f"📞 {office['phone']}")
-        #         if office.get('email'):
-        #             st.write(f"✉️ {office['email']}")
-                
-        #         if st.button(f"Contact {office['name'].split()[0]}", key=f"stem_office_{i}", use_container_width=True):
-        #             track_resource_interaction(office['name'], "contact_requested")
-        #             st.info(f"Reach out to {office['name']} for specialized assistance!")
-            
-        #     if i < len(offices) - 1:
-        #         st.divider()
 
 def main():
     """Main function to render the resources page"""
