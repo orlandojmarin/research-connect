@@ -122,6 +122,8 @@ def main():
     # Configure page and initialize session
     configure_page()
     initialize_resources_session()
+
+    st.logo("images/scsu_logo.jpg", size="large")
     
     # Render page components
     render_header()

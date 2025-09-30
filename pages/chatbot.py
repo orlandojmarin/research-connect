@@ -41,14 +41,14 @@ def render_sidebar():
         
         st.divider()
         
-        # Quick tips
-        with st.container(border=True):
-            st.subheader(sidebar_config["quick_tips"]["title"])
-            st.write("**Ask me things like:**")
-            for question in sidebar_config["quick_tips"]["example_questions"]:
-                st.write(f'• "{question}"')
+        # # Quick tips
+        # with st.container(border=True):
+        #     st.subheader(sidebar_config["quick_tips"]["title"])
+        #     st.write("**Ask me things like:**")
+        #     for question in sidebar_config["quick_tips"]["example_questions"]:
+        #         st.write(f'• "{question}"')
         
-        st.divider()
+        # st.divider()
         
         # Clear conversation button
         if st.button("🔄 Clear Conversation", type="secondary", use_container_width=True):
@@ -167,7 +167,7 @@ def main():
     # Render page components
     render_sidebar()
     render_header()
-    render_suggested_questions()
+    # render_suggested_questions()
     render_chat_interface()
     handle_user_input()
     render_help_section()

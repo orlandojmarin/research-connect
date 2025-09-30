@@ -59,6 +59,8 @@ def main():
     configure_page()
     st.title("Research Opportunities 🔍")
 
+    st.logo("images/scsu_logo.jpg", size="large")
+
     # Sidebar filters
     hours_filter, compensation_filter, faculty_filter = render_sidebar_filters()
 
