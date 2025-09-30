@@ -214,19 +214,20 @@ def main():
     # Configure page and initialize session
     configure_page()
     initialize_session_state()
+    st.logo("images/scsu_logo.jpg", size="large")
     
     # Render page components
-    render_sidebar()
+    # render_sidebar()
     render_header()
     render_quick_actions()
     st.divider()
     render_features()
-    st.divider()
-    render_success_tips()
-    st.divider()
-    render_getting_started()
-    st.divider()
-    render_contact_info()
+    # st.divider()
+    # render_success_tips()
+    # st.divider()
+    # render_getting_started()
+    # st.divider()
+    # render_contact_info()
     render_footer()
 
 if __name__ == "__main__":
