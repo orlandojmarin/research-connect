@@ -8,6 +8,35 @@ Handles chatbot functionality, response generation, and conversation management
 import datetime
 import random
 import streamlit as st
+import os
+from dotenv import load_dotenv
+import vertexai
+from vertexai.generative_models import GenerativeModel
+
+# Load environment variables
+load_dotenv()
+
+def initialize_vertex_ai():
+    """
+    Initialize Vertex AI connection
+    
+    Returns:
+        GenerativeModel or None: Initialized model or None if fails
+    """
+    try:
+        project_id = os.getenv('GCP_PROJECT_ID')
+        if not project_id:
+            print("GCP_PROJECT_ID not found in environment variables")
+            return None
+        
+        vertexai.init(project=project_id, location="us-central1")
+        model = GenerativeModel("gemini-2.5-flash")
+        print("Vertex AI initialized successfully")
+        return model
+    except Exception as e:
+        print(f"Failed to initialize Vertex AI: {e}")
+        return None
+
 
 def initialize_chat_session():
     """
@@ -124,9 +153,32 @@ def add_assistant_message(content):
     }
     st.session_state.messages.append(message)
 
+# def generate_chatbot_response(user_input):
+#     """
+#     Generate chatbot responses based on user input
+    
+#     Args:
+#         user_input (str): User's input message
+        
+#     Returns:
+#         str: Generated response
+#     """
+#     user_input_lower = user_input.lower()
+    
+#     # Define response templates
+#     responses = get_response_templates()
+    
+#     # Check for keywords and return appropriate response
+#     for keywords, response_key in get_keyword_mappings():
+#         if any(keyword in user_input_lower for keyword in keywords):
+#             return responses[response_key]
+    
+#     # Default response for unrecognized inputs
+#     return generate_default_response(user_input)
+
 def generate_chatbot_response(user_input):
     """
-    Generate chatbot responses based on user input
+    Generate chatbot responses using Vertex AI or fallback to templates
     
     Args:
         user_input (str): User's input message
@@ -134,17 +186,41 @@ def generate_chatbot_response(user_input):
     Returns:
         str: Generated response
     """
-    user_input_lower = user_input.lower()
+    # Try to use Vertex AI first
+    model = initialize_vertex_ai()
     
-    # Define response templates
+    if model:
+        try:
+            system_prompt = """You are ResearchAI, an AI assistant for Southern Connecticut State University (SCSU). 
+            Your role is to help students find research opportunities, connect with faculty, and navigate campus resources.
+            
+            Key information about SCSU:
+            - STEM Center is located in Engleman Hall and offers tutoring, research coordination, and career guidance
+            - Office of Career & Professional Development provides resume help, interview prep, and job search support
+            - The Innovation Hub supports entrepreneurship and leadership development
+            - Students can find research opportunities through the Listings page
+            - Campus resources are available through various offices like the STEM Center and Career Services
+            
+            Be friendly, helpful, and specific to SCSU when possible. If you don't know something specific about SCSU, 
+            guide the user to check the appropriate office or webpage."""
+            
+            full_prompt = f"{system_prompt}\n\nStudent Question: {user_input}\n\nResearchAI Response:"
+            
+            response = model.generate_content(full_prompt)
+            return response.text
+            
+        except Exception as e:
+            print(f"Vertex AI response failed: {e}")
+            # Fall through to template responses
+    
+    # Fallback to template responses if AI fails
+    user_input_lower = user_input.lower()
     responses = get_response_templates()
     
-    # Check for keywords and return appropriate response
     for keywords, response_key in get_keyword_mappings():
         if any(keyword in user_input_lower for keyword in keywords):
             return responses[response_key]
     
-    # Default response for unrecognized inputs
     return generate_default_response(user_input)
 
 def get_response_templates():
