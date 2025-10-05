@@ -1,6 +1,18 @@
 # TATIANA
+
 import streamlit as st
 from utils.listings_utils import get_listings_data, filter_listings
+
+FACULTY_NAMES = [
+    "Amal Abd El-Raouf",
+    "Hao Wu",
+    "Imad Antonios",
+    "Lisa Lancor",
+    "Md Shafaeat Hossain",
+    "Mohammad Islam",
+    "Sahar Al Seesi",
+    "Winnie Yu"
+]
 
 def configure_page():
     st.set_page_config(
@@ -16,7 +28,7 @@ def render_sidebar_filters():
     with st.sidebar.expander("Compensation Type", expanded=False):
         compensation_filter = st.radio("", ["All", "Paid", "Unpaid"], index=0)
     with st.sidebar.expander("Faculty", expanded=False):
-        faculty_filter = st.radio("", ["All", "Imad Antonios", "Lisa Lancor", "Md Shafaeat Hossain"], index=0)
+        faculty_filter = st.radio("", options=["All"] + FACULTY_NAMES, index=0)
     return hours_filter, compensation_filter, faculty_filter
 
 def render_listings(listings):
@@ -68,7 +80,9 @@ def main():
             # Use a container for a form-like layout
             with st.container():
                 title = st.text_input("Project Title", value="")
-                pi = st.text_input("Principal Investigator", value="")
+                # pi = st.text_input("Principal Investigator", value="")
+                pi = st.selectbox("Principal Investigator", options=[""] + FACULTY_NAMES)  # "" allows no default selection
+
                 team = st.text_input("Additional Investigators/Team Members", value="")
                 department = st.text_input("Department/Lab", value="")
                 skills = st.text_area("Skills Required", value="")
