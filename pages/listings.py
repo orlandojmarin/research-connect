@@ -38,9 +38,10 @@ def render_sidebar_filters():
 
     return hours_filter, compensation_filter, faculty_filter
 
+
 def render_listings(listings):
     for listing in listings:
-        with st.container():
+        with st.container(border=True):
             st.subheader(listing["title"])
             st.write(f"**Principal Investigator:** {listing['pi']}")
             st.write(f"**Additional Investigators/Team Members:** {listing['team']}")
@@ -53,25 +54,51 @@ def render_listings(listings):
             st.write(f"**Number of Hours per Week:** {listing['weekly_hours']}")
             st.write(f"**Summary/Description:** {listing['summary']}")
             st.write(f"**Date Posted:** {listing['date_posted']}")
-            st.write("---")  # divider between listings for clarity
+
 
 def main():
     configure_page()
+
+    # TEMPORARY: force faculty role so all tabs show
+    if "role" not in st.session_state:
+        st.session_state["role"] = "FACULTY"
+
     st.title("Research Opportunities 🔍")
 
     st.logo("images/scsu_logo.jpg", size="large")
 
-    # Sidebar filters
-    hours_filter, compensation_filter, faculty_filter = render_sidebar_filters()
+    # Example of role (mock for now)
+    # In future, this will come from session state: st.session_state["role"]
+    user_role = st.session_state.get("role", "STUDENT")  # default to STUDENT for now
 
-    # Load listings and filter
-    listings = get_listings_data()
-    filtered_listings = filter_listings(listings, hours_filter, compensation_filter, faculty_filter)
-
-    if filtered_listings:
-        render_listings(filtered_listings)
+    # Role-based tab logic
+    if user_role == "FACULTY":
+        tab1, tab2, tab3 = st.tabs(["Browse Listings", "Create Listing", "My Listings"])
     else:
-        st.info("No listings match your filters.")
+        tab1, = st.tabs(["Browse Listings"])
+
+    # --- Tab 1: Browse Listings (current functionality) ---
+    with tab1:
+        hours_filter, compensation_filter, faculty_filter = render_sidebar_filters()
+        listings = get_listings_data()
+        filtered_listings = filter_listings(listings, hours_filter, compensation_filter, faculty_filter)
+
+        if filtered_listings:
+            render_listings(filtered_listings)
+        else:
+            st.info("No listings match your filters.")
+
+    # --- Tab 2: Create Listing ---
+    if user_role == "FACULTY":
+        with tab2:
+            st.header("Create a New Research Listing")
+            st.info("Form for creating new research listings will go here.")
+
+        # --- Tab 3: My Listings ---
+        with tab3:
+            st.header("My Listings")
+            st.info("Faculty’s personal listings will appear here.")
+
 
 if __name__ == "__main__":
     main()
