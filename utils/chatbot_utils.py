@@ -109,39 +109,6 @@ def add_assistant_message(content):
     }
     st.session_state.messages.append(message)
 
-# def generate_chatbot_response(user_input):
-#     """
-#     Generate chatbot responses using Vertex AI or fallback to templates
-    
-#     Args:
-#         user_input (str): User's input message
-        
-#     Returns:
-#         str: Generated response
-#     """
-#     # Try to use Vertex AI first
-#     model = initialize_vertex_ai()
-    
-#     if model:
-#         try:
-#             system_prompt = """You are ResearchAI, an AI assistant for Southern Connecticut State University (SCSU). 
-#             Your role is to help students find research opportunities, connect with faculty, and navigate campus resources.
-            
-#             Be friendly, helpful, and specific to SCSU when possible. If you don't know something specific about SCSU, 
-#             guide the user to check the appropriate office or webpage."""
-            
-#             full_prompt = f"{system_prompt}\n\nStudent Question: {user_input}\n\nResearchAI Response:"
-            
-#             response = model.generate_content(full_prompt)
-#             return response.text
-            
-#         except Exception as e:
-#             print(f"Vertex AI response failed: {e}")
-#             return "Sorry, I'm having trouble generating a response right now."
-    
-#     else:
-#         return "Vertex AI is not initialized."
-
 def generate_chatbot_response(user_input):
     """
     Generate chatbot responses using Vertex AI with conversation context.
