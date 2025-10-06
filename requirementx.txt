@@ -1,0 +1,4 @@
+streamlit
+google-cloud-aiplatform
+python-dotenv
+pyrebase4
