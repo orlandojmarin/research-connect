@@ -7,7 +7,24 @@ import time
 import random
 from utils.chatbot_utils import (initialize_chat_session,get_sidebar_info,clear_conversation,
 add_user_message,add_assistant_message,generate_chatbot_response,log_conversation)
+# --- USER BADGE + LOG OUT and Auth gate ---
+if "user" not in st.session_state or st.session_state.user is None:
+    st.switch_page("home.py")
+    st.stop()
 
+# NEW — grab user info for this page
+user = st.session_state.user              # 
+email = user["email"]                     # 
+uid   = user["uid"]                       # 
+role  = user.get("role", "student")       # 
+
+with st.sidebar:
+    st.success(f"Logged in as {email}")               # changed to use email var
+    st.caption(f"Role: {role}")
+    if st.button("Log Out"):
+        st.session_state.user = None
+        st.session_state.page = "landing"
+        st.rerun()
 def main():
     """Main function to render the chatbot page"""
     # Configure page

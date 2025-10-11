@@ -14,12 +14,30 @@ FACULTY_NAMES = [
     "Winnie Yu"
 ]
 
+if "user" not in st.session_state or st.session_state.user is None:
+    st.switch_page("home.py")
+    st.stop()
+
+# NEW — grab user info for this page
+user = st.session_state.user              # 
+email = user["email"]                     # 
+uid   = user["uid"]                       # 
+role  = user.get("role", "student")       # 
+
+
 def configure_page():
     st.set_page_config(
         page_title="Research Opportunities 🔍",
         page_icon="🔍",
         layout="wide"
     )
+with st.sidebar:
+    st.success(f"Logged in as {email}")               # changed to use email var
+    st.caption(f"Role: {role}")
+    if st.button("Log Out"):
+        st.session_state.user = None
+        st.session_state.page = "landing"
+        st.rerun()
 
 def render_sidebar_filters():
     st.sidebar.title("Filters")
