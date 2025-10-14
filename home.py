@@ -2,6 +2,8 @@
 # ORLANDO
 # Streamlit Documentation: https://docs.streamlit.io/get-started 
 # run the program with streamlit run home.py
+
+
 from utils.auth_utils import auth, friendly_firebase_error
 import streamlit as st
 from utils.auth_utils import (
