@@ -61,12 +61,12 @@ def render_signup():
         password = st.text_input("Password", type="password")
     confirm = st.text_input("Confirm password", type="password")
 
-    col_a, col_b = st.columns(2)
-    create_clicked = col_a.button("Continue", use_container_width=True)
+    col_a, col_b = st.columns(2, gap="small", vertical_alignment="top")
+    with col_a:
+        create_clicked = st.button("Continue", use_container_width=True)
     with col_b:
-        st.markdown('<div class="rc-back">', unsafe_allow_html=True)   # <<< add
         back_clicked = st.button("Back to landing", use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True) 
+ 
 
     if create_clicked:
         try:
@@ -129,12 +129,12 @@ def render_login():
     email_raw = st.text_input("SCSU email address", key="login_email")
     password  = st.text_input("Password", type="password", key="login_pw")
 
-    col_a, col_b = st.columns(2)
-    login_clicked = col_a.button("Continue", use_container_width=True)
+    col_a, col_b = st.columns(2, gap="small", vertical_alignment="top")
+    with col_a:
+        login_clicked = st.button("Continue", use_container_width=True)
     with col_b:
-        st.markdown('<div class="rc-back">', unsafe_allow_html=True)   # <<< add
         back_clicked  = st.button("Back to landing", use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)                  # <<< add
+
 
     if login_clicked:
         email = sanitize_email(email_raw)
@@ -171,63 +171,7 @@ def render_login():
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.set_page_config(page_title="ResearchConnect SCSU", page_icon="🔐", layout="centered")
-st.markdown(
-    """
-    <style>
-      :root{
-        --rc-blue:#003DA5;
-        --rc-gold:#FFC72C;
-        --rc-input:#E6E6E6;
-      }
 
-      /* Landing title */
-      #landing h1{
-        text-align:center; color:var(--rc-blue)!important;
-        font-size:60px!important; font-weight:800; margin:1.25rem 0 2.5rem;
-      }
-
-      /* Landing buttons */
-      #landing .stButton > button{
-        background:var(--rc-gold)!important; color:var(--rc-blue)!important;
-        font-weight:800; font-size:24px; height:96px; border:0; border-radius:10px;
-        box-shadow:none;
-      }
-      #landing .stButton + .stButton > button{
-        background:transparent!important; color:var(--rc-blue)!important;
-        text-decoration:underline; height:auto; font-size:18px; font-weight:700;
-        padding:0; border:0; box-shadow:none; margin-top:1rem;
-      }
-
-      /* Forms (login & signup) */
-      .rc-form h1{
-        color:var(--rc-blue)!important; font-weight:800; text-align:center;
-        margin:0.5rem 0 2rem; font-size:42px!important;
-      }
-      .rc-form label{ color:var(--rc-blue)!important; font-weight:600; }
-
-      /* DESIGN CHANGE: target Streamlit's nested input element */
-      .rc-form .stTextInput > div > div > input{
-        background:var(--rc-input)!important; border:0!important; height:56px; border-radius:10px;
-      }
-      /* DESIGN CHANGE: ensure password inputs match the same style */
-      .rc-form .stPassword > div > div > input{
-        background:var(--rc-input)!important; border:0!important; height:56px; border-radius:10px;
-      }
-
-      /* Primary then link-style buttons inside form */
-      .rc-form .stButton > button{
-        background:var(--rc-gold)!important; color:var(--rc-blue)!important;
-        font-weight:800; font-size:20px; height:64px; border:0; border-radius:10px;
-      }
-      .rc-form .stButton:nth-of-type(2) > button{
-        background:transparent!important; color:var(--rc-blue)!important;
-        text-decoration:underline; height:auto; font-size:16px; font-weight:700;
-        padding:0; box-shadow:none; border:0;
-      }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
 
 # === END OF BLOCK ===
 
