@@ -11,6 +11,16 @@ from utils.resources_utils import (
     track_resource_interaction,
     initialize_resources_session
 )
+# Sana--- AUTH GATE ---
+if "user" not in st.session_state or st.session_state.user is None:
+    st.switch_page("home.py")
+    st.stop()
+
+# NEW — grab user info for this page
+user = st.session_state.user              # 
+email = user["email"]                     # 
+uid   = user["uid"]                       # 
+role  = user.get("role", "student")       # 
 
 def configure_page():
     """Configure page settings and metadata"""
@@ -19,6 +29,17 @@ def configure_page():
         page_icon="📚",
         layout="wide"
     )
+
+# Sana--- USER BADGE + LOG OUT ---
+with st.sidebar:
+    st.success(f"Logged in as {email}")               # changed to use email var
+    st.caption(f"Role: {role}")
+    if st.button("Log Out"):
+        st.session_state.user = None
+        st.session_state.page = "landing"
+        st.rerun()
+
+
         
 def render_header():
     """Render main page header"""

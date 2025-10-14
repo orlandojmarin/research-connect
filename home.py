@@ -1,11 +1,223 @@
+#sana (landing + login + signup only, CSS)
 # ORLANDO
 # Streamlit Documentation: https://docs.streamlit.io/get-started 
 # run the program with streamlit run home.py
-
+from utils.auth_utils import auth, friendly_firebase_error
 import streamlit as st
-from utils.home_utils import (get_quick_actions, get_feature_descriptions, 
-initialize_session_state)
+from utils.auth_utils import (
+    auth, db, sanitize_email, is_allowed_sc_su_email,
+    strong_password, friendly_firebase_error, delete_self_account
+)
+from utils.home_utils import get_quick_actions, get_feature_descriptions, initialize_session_state
 
+import os, time
+from streamlit import components
+from datetime import datetime
+from requests.exceptions import HTTPError
+
+
+def go(page: str):
+    st.session_state.page = page
+
+# --------- pages (landing/login/signup) ----------
+def render_landing():
+    st.markdown('<div id="landing">', unsafe_allow_html=True)
+
+    c1, c2 = st.columns([2, 6])
+    with c1:
+        st.image("images/scsu_logo.png", width=250)
+    with c2:
+        st.write("")
+
+    # keep title simple; CSS will style it
+    st.markdown("<h1>ResearchConnect SCSU</h1>", unsafe_allow_html=True)
+
+    left, mid, right = st.columns([2, 3, 2])
+    with mid:
+        # ⬇⬇ wrap buttons so CSS can hit them 100%
+        st.markdown('<div class="rc-primary">', unsafe_allow_html=True)
+        if st.button("LOG IN", use_container_width=True, key="landing-login"):
+            go("login")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown('<div class="rc-link">', unsafe_allow_html=True)
+        if st.button("CREATE AN ACCOUNT", use_container_width=True, key="landing-signup"):
+            go("signup")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+def render_signup():
+    st.markdown('<div class="rc-form">', unsafe_allow_html=True)  # (styling wrapper)
+
+    st.title("Create Account")
+
+    c1, c2 = st.columns(2)
+    with c1:
+        first = st.text_input("First name")
+        email_raw = st.text_input("SCSU email address")
+    with c2:
+        last = st.text_input("Last name")
+        password = st.text_input("Password", type="password")
+    confirm = st.text_input("Confirm password", type="password")
+
+    col_a, col_b = st.columns(2, gap="small", vertical_alignment="top")
+    with col_a:
+        create_clicked = st.button("Continue", use_container_width=True)
+    with col_b:
+        back_clicked = st.button("Back to landing", use_container_width=True)
+ 
+
+    if create_clicked:
+        try:
+            email = sanitize_email(email_raw)
+
+            if not is_allowed_sc_su_email(email):
+                st.error("Please use your SCSU email (…@southernct.edu).")
+                st.stop()
+
+            ok, msg = strong_password(password)
+            if not ok:
+                st.error(msg); st.stop()
+            if password != confirm:
+                st.error("Passwords do not match."); st.stop()
+
+            try:
+                user = auth.create_user_with_email_and_password(email, password)
+                uid = user["localId"]
+            except HTTPError as ce:
+                body = None
+                try:
+                    body = ce.response.json()
+                except Exception:
+                    pass
+                code = (body or {}).get("error", {}).get("message", "")
+                if "EMAIL_EXISTS" in code:
+                    try:
+                        signed = auth.sign_in_with_email_and_password(email, password)
+                        # optional: delete+recreate handled inside your utils if you want
+                        uid = signed["localId"]
+                    except Exception:
+                        st.error("Couldn’t create that account. Try a different SCSU email or use the original password.")
+                        st.stop()
+                else:
+                    st.error(friendly_firebase_error(ce))
+                    st.stop()
+
+            db.child("users").child(uid).set({
+                "email": email,
+                "name": f"{first} {last}".strip(),
+                "role": "student",
+                "created_at": datetime.utcnow().isoformat() + "Z",
+            })
+
+            st.success("Account is ready. Please log in.")
+            time.sleep(0.8)
+            go("login")
+
+        except Exception as e:
+            st.error(friendly_firebase_error(e))
+
+    if back_clicked:
+        go("landing")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_login():
+    st.markdown('<div class="rc-form">', unsafe_allow_html=True)  # (styling wrapper)
+
+    st.title("Log in")
+    email_raw = st.text_input("SCSU email address", key="login_email")
+    password  = st.text_input("Password", type="password", key="login_pw")
+
+    col_a, col_b = st.columns(2, gap="small", vertical_alignment="top")
+    with col_a:
+        login_clicked = st.button("Continue", use_container_width=True)
+    with col_b:
+        back_clicked  = st.button("Back to landing", use_container_width=True)
+
+
+    if login_clicked:
+        email = sanitize_email(email_raw)
+        if not is_allowed_sc_su_email(email):
+            st.error("Please use your SCSU email (…@southernct.edu).")
+            st.stop()
+
+        try:
+            user = auth.sign_in_with_email_and_password(email, password)
+            info = auth.get_account_info(user["idToken"])
+            uid = info["users"][0]["localId"]
+
+            # put basics in session
+            st.session_state.user = {
+                "uid": uid,
+                "email": email,
+                "idToken": user["idToken"],
+            }
+
+            # fetch role from DB and add to session (defaults to "student")
+            profile = db.child("users").child(uid).get().val() or {}
+            st.session_state.user["role"] = profile.get("role", "student")
+
+            st.session_state.page = "home"
+            st.rerun()  # single rerun so auth gate passes and home renders
+            return
+        except Exception as e:
+            st.error(friendly_firebase_error(e))
+            st.caption(str(e))
+
+    if back_clicked:
+        st.session_state.page = "landing"
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+st.set_page_config(page_title="ResearchConnect SCSU", page_icon="🔐", layout="centered")
+
+
+# === END OF BLOCK ===
+
+# --------- AUTH GATE ---------
+# Ensure keys exist
+if "user" not in st.session_state:
+    st.session_state.user = None
+if "page" not in st.session_state:
+    st.session_state.page = "landing"  # landing | login | signup
+
+# If NOT logged in → hide sidebar + render auth screens and STOP
+if st.session_state.user is None:
+    st.markdown("""
+        <style>
+            /* Hide the entire sidebar */
+            [data-testid="stSidebar"],
+            section[data-testid="stSidebar"] { display: none !important; }
+            /* Hide multi-page nav (older/newer selectors) */
+            nav[data-testid="stSidebarNav"] { display: none !important; }
+            /* Hide the little header chevron */
+            button[kind="header"] { visibility: hidden; }
+            /* Slightly widen content since sidebar is gone */
+            .block-container { padding-left: 2rem; padding-right: 2rem; }
+        </style>
+    """, unsafe_allow_html=True)
+
+    page = st.session_state.page
+    if page == "landing":
+        render_landing()
+    elif page == "signup":
+        render_signup()
+    elif page == "login":
+        render_login()
+    st.stop()
+
+# Logged in → show home; add logout
+with st.sidebar:
+    st.success(f"Logged in as {st.session_state.user['email']}")
+    if st.button("Log Out"):
+        st.session_state.user = None
+        st.session_state.page = "landing"
+        st.rerun()
+# --------- END AUTH GATE ---------
+
+
+# (-------------------------------------------------------------------------------------------)
 def main():
     """Main function to render the home page"""
     # Configure page and initialize session
@@ -117,4 +329,4 @@ def render_footer():
     st.caption("Developed by Tatiana Eng, Orlando Marin, and Sana Muneer | CSC 400 Capstone Project")
 
 if __name__ == "__main__":
-    main()
+        main()
