@@ -1,8 +1,10 @@
-#Sana
+# SANA
 import pyrebase
 from requests.exceptions import HTTPError
 import requests
 import json, unicodedata, re
+import streamlit as st
+import datetime
 
 # ============================ SETTINGS ============================
 ALLOWED_DOMAINS = {"southernct.edu"}
@@ -29,7 +31,7 @@ db = firebase.database()
 
 # ============================ HELPERS ============================
 def sanitize_email(raw: str) -> str:
-    """Normalize, strip whitespace, remove zero-width/control chars."""
+    """Normalize email: remove whitespace, control chars, and lowercase it."""
     if not raw:
         return ""
     txt = unicodedata.normalize("NFKC", raw)
@@ -38,6 +40,7 @@ def sanitize_email(raw: str) -> str:
     return txt.strip().lower()
 
 def is_allowed_sc_su_email(raw: str) -> bool:
+    """Check if the email is valid and belongs to an allowed SCSU domain."""
     e = sanitize_email(raw)
     if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", e):
         return False
@@ -45,7 +48,7 @@ def is_allowed_sc_su_email(raw: str) -> bool:
     return domain in ALLOWED_DOMAINS
 
 def strong_password(pw: str):
-    # Simple rule: >= 8 chars, includes a letter and a number
+    """Check if a password is strong (>=8 chars, includes letters and numbers). Returns (bool, msg)."""
     if not pw or len(pw) < 8:
         return False, "Password must be at least 8 characters."
     if not any(c.isalpha() for c in pw):
@@ -55,7 +58,7 @@ def strong_password(pw: str):
     return True, ""
 
 def friendly_firebase_error(err: Exception) -> str:
-    """Turn Firebase REST error codes into friendly messages."""
+    """Convert Firebase REST API errors into user-friendly messages."""
     default_msg = "Couldn’t complete that. Please try again."
     if isinstance(err, HTTPError) and err.response is not None:
         try:
@@ -88,7 +91,7 @@ def friendly_firebase_error(err: Exception) -> str:
     return default_msg
 
 def delete_self_account(id_token: str):
-    """Delete the currently signed-in account using its idToken."""
+    """Delete the currently authenticated Firebase user using their ID token."""
     # Try pyrebase helper if present
     try:
         auth.delete_user_account(id_token)  # some pyrebase builds have this
@@ -100,3 +103,56 @@ def delete_self_account(id_token: str):
     url = f"https://identitytoolkit.googleapis.com/v1/accounts:delete?key={api_key}"
     r = requests.post(url, json={"idToken": id_token}, timeout=10)
     r.raise_for_status()
+
+# ORLANDO'S CODE ADDED
+
+# ============================ AUTH OPERATIONS ============================
+
+def create_account(email: str, password: str, first_name: str, last_name: str):
+    """Create a new Firebase user and store their profile in the database. Returns uid."""
+    try:
+        user = auth.create_user_with_email_and_password(email, password)
+        uid = user["localId"]
+    except HTTPError as ce:
+        # Handle duplicate account case gracefully
+        body = None
+        try:
+            body = ce.response.json()
+        except Exception:
+            pass
+        code = (body or {}).get("error", {}).get("message", "")
+        if "EMAIL_EXISTS" in code and ALLOW_RECREATE_SAME_EMAIL:
+            try:
+                signed = auth.sign_in_with_email_and_password(email, password)
+                uid = signed["localId"]
+            except Exception:
+                raise ce
+        else:
+            raise ce
+
+    # Save basic profile in DB
+    db.child("users").child(uid).set({
+        "email": email,
+        "name": f"{first_name} {last_name}".strip(),
+        "role": "student",
+        "created_at": datetime.datetime.utcnow().isoformat() + "Z",
+    })
+
+    return uid
+
+def sign_in(email: str, password: str):
+    """Sign in a Firebase user and return (uid, id_token)."""
+    user = auth.sign_in_with_email_and_password(email, password)
+    info = auth.get_account_info(user["idToken"])
+    uid = info["users"][0]["localId"]
+    return uid, user["idToken"]
+
+def go(page: str):
+    """Set the Streamlit session state page to navigate between app pages."""
+    st.session_state.page = page
+
+def logout():
+    """Log out the current user by clearing session state."""
+    st.session_state.user = None
+    st.session_state.page = "landing"
+

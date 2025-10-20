@@ -25,6 +25,7 @@ with st.sidebar:
         st.session_state.user = None
         st.session_state.page = "landing"
         st.rerun()
+
 def main():
     """Main function to render the chatbot page"""
     # Configure page
