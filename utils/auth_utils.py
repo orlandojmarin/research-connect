@@ -3,6 +3,8 @@ import pyrebase
 from requests.exceptions import HTTPError
 import requests
 import json, unicodedata, re
+import streamlit as st
+import datetime
 
 # ============================ SETTINGS ============================
 ALLOWED_DOMAINS = {"southernct.edu"}
@@ -100,3 +102,67 @@ def delete_self_account(id_token: str):
     url = f"https://identitytoolkit.googleapis.com/v1/accounts:delete?key={api_key}"
     r = requests.post(url, json={"idToken": id_token}, timeout=10)
     r.raise_for_status()
+
+# ORLANDO'S CODE ADDED
+
+# ============================ AUTH OPERATIONS ============================
+
+def create_account(email: str, password: str, first_name: str, last_name: str):
+    """
+    Create a new Firebase Auth user and store their profile in the database.
+    Returns:
+        uid (str): User ID of the newly created user
+    Raises:
+        HTTPError or Exception if account creation fails
+    """
+    try:
+        user = auth.create_user_with_email_and_password(email, password)
+        uid = user["localId"]
+    except HTTPError as ce:
+        # Handle duplicate account case gracefully
+        body = None
+        try:
+            body = ce.response.json()
+        except Exception:
+            pass
+        code = (body or {}).get("error", {}).get("message", "")
+        if "EMAIL_EXISTS" in code and ALLOW_RECREATE_SAME_EMAIL:
+            try:
+                signed = auth.sign_in_with_email_and_password(email, password)
+                uid = signed["localId"]
+            except Exception:
+                raise ce
+        else:
+            raise ce
+
+    # Save basic profile in DB
+    db.child("users").child(uid).set({
+        "email": email,
+        "name": f"{first_name} {last_name}".strip(),
+        "role": "student",
+        "created_at": datetime.datetime.utcnow().isoformat() + "Z",
+    })
+
+    return uid
+
+
+def sign_in(email: str, password: str):
+    """
+    Sign in an existing Firebase Auth user and return user info.
+    Returns:
+        (uid, id_token)
+    Raises:
+        HTTPError or Exception if sign-in fails
+    """
+    user = auth.sign_in_with_email_and_password(email, password)
+    info = auth.get_account_info(user["idToken"])
+    uid = info["users"][0]["localId"]
+    return uid, user["idToken"]
+
+def go(page: str):
+    st.session_state.page = page
+
+def logout():
+    st.session_state.user = None
+    st.session_state.page = "landing"
+
