@@ -157,40 +157,37 @@ def hide_sidebar():
 
 def render_landing():
     """Render the landing page with logo, title, and login/signup buttons."""
-    # Top spacing
     st.write("")
     st.write("")
 
-    # --- Logo ---
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.image("images/logo.png", width=300)
-
-    # --- Title & subtitle ---
+    # --- Title & subtitle remain full width and centered ---
     st.markdown("<h1 style='text-align: center;'>ResearchConnect SCSU</h1>", unsafe_allow_html=True)
     st.markdown(
         "<p style='text-align: center; font-size: 18px; color: #666;'>Connecting Students with Research Opportunities</p>",
         unsafe_allow_html=True
     )
+    st.write("")
+
+    # --- Logo inside center column to control its width ---
+    left, center, right = st.columns([1, 2, 1])
+    with center:
+        st.image("images/logo.png", use_container_width=True)
 
     st.write("")
 
-    # --- Buttons & welcome message ---
+    # --- Buttons in the same column setup ---
     left, center, right = st.columns([1, 2, 1])
     with center:
         st.info("**Welcome!** Please log in or create an account to access ResearchConnect.")
         st.write("")
-
-        # Buttons stacked vertically, same width
         if st.button("🔑 Log In", use_container_width=True):
             go("login")
             st.rerun()
-
-        st.write("")  # spacing between buttons
-
+        st.write("")
         if st.button("✨ Create Account", use_container_width=True):
             go("signup")
             st.rerun()
+
 
 def render_signup():
     """Render the account creation page with form inputs and validation.
