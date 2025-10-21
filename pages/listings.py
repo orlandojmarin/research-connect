@@ -13,7 +13,7 @@ from datetime import datetime
 from utils.profile_utils import get_user_profile
 
 FACULTY_NAMES = [
-    "Amal Abd El-Raouf",
+    "Amal Abed El-Raouf",
     "Hao Wu",
     "Imad Antonios",
     "Lisa Lancor",
@@ -54,12 +54,17 @@ if email in ("engt1@southernct.edu", "marino1@southernct.edu", "muneerb1@souther
     role = "ADMIN"
 
 def configure_page():
+    """
+    Configure the Streamlit page settings for the application.
+
+    Sets the page title, icon, and layout to create a consistent user interface 
+    for browsing and managing faculty research opportunities.
+    """
     st.set_page_config(
         page_title="Research Opportunities 🔍",
         page_icon="🔍",
         layout="wide"
     )
-
 
 configure_page()
 
@@ -73,6 +78,13 @@ with st.sidebar:
 
 
 def render_sidebar_filters():
+    """
+    Render sidebar filters for refining research opportunity listings and 
+    allow users to narrow down listings based on their availability and preferences.
+
+    Returns:
+        tuple: A tuple containing selected values for (hours_filter, compensation_filter, faculty_filter).
+    """
     st.sidebar.title("Filters")
     with st.sidebar.expander("Hours per Week", expanded=False):
         hours_filter = st.radio("", ["All", "0 to 5", "6 to 10", "10+"], index=0, key="hours_filter")
@@ -84,6 +96,17 @@ def render_sidebar_filters():
 
 
 def render_listings(listings):
+    """
+    Display a list of research opportunity listings in a structured and readable format.
+
+    Each listing includes detailed information such as project title, 
+    principal investigator, department, required skills, duration, compensation, 
+    and other key attributes.
+
+    Args:
+        listings (list[dict]): A list of research listings to display, 
+        each represented as a dictionary containing listing details.
+    """
     # Create centered column layout
     col1, col2, col3 = st.columns([1, 3, 1])
     
@@ -101,11 +124,21 @@ def render_listings(listings):
                 st.write(f"**Hourly Pay Rate:** ${listing['pay_rate']}")
                 st.write(f"**Skills Required:** {listing['skills']}")
                 st.write(f"**Summary/Description:** {listing['summary']}")
-                st.write(f"**Date Posted:** {listing['date_posted']}")
+                st.write(f"Posted by {listing['pi']} on {listing['date_posted']}")
                 st.write("")  # Add spacing between listings
 
 
 def main():
+    """
+    Serve as the main entry point for the Streamlit application.
+
+    Handles page layout, user role–based navigation (faculty/admin vs. student), 
+    and integrates all primary app functions, including browsing listings, 
+    creating new listings, and viewing user-specific listings.
+
+    This function coordinates user interaction, filtering logic, 
+    Firebase data retrieval, and form submission workflows.
+    """
     st.title("Research Opportunities 🔍")
     st.logo("images/scsu_logo.jpg", size="large")
 
@@ -136,7 +169,6 @@ def main():
     if role in ("FACULTY", "ADMIN"):
         with tab2:
             st.header("Create a New Research Listing")
-            st.info("Fill out the form below and submit.")
 
             # Initialize form counter if not exists
             if "form_counter" not in st.session_state:
@@ -149,8 +181,7 @@ def main():
                 # Display success messages at the top if they exist
                 if st.session_state.get("listing_created", False):
                     st.success(f"Listing '{st.session_state.listing_title}' successfully created!")
-                    st.info(f"Posted by {st.session_state.listing_posted_by} on {st.session_state.listing_date}")
-                    # Clear the flags after displaying
+                    # Clear the flag after displaying
                     st.session_state.listing_created = False
                 
                 # Use a container for a form-like layout
