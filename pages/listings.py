@@ -1,4 +1,11 @@
 # TATIANA
+# listings.py
+
+# add captions/examples for each field
+# make fields required
+# add a field for application instructions
+# add a field for professor's website
+# change submit button to say "Post Listing"
 
 import streamlit as st
 from utils.listings_utils import get_listings_data, filter_listings
@@ -14,16 +21,35 @@ FACULTY_NAMES = [
     "Winnie Yu"
 ]
 
+SKILLS_OPTIONS = [
+    "Python",
+    "Java",
+    "C++",
+    "SQL",
+    "Web Development (HTML, CSS, JavaScript)",
+    "Data Science",
+    "Artificial Intelligence/Machine Learning",
+    "Data Visualization",
+    "Software Development",
+    "Cloud Computing (AWS, Azure, GCP)",
+    "Database Design and Management",
+    "Research Methods / Experimental Design"
+]
+
+# Check if user is logged in
 if "user" not in st.session_state or st.session_state.user is None:
     st.switch_page("home.py")
     st.stop()
 
-# NEW — grab user info for this page
-user = st.session_state.user              # 
-email = user["email"]                     # 
-uid   = user["uid"]                       # 
-role  = user.get("role", "student")       # 
+# Grab user info for this page
+user = st.session_state.user
+email = user.get("email", "")
+uid = user.get("uid", "")
+role = user.get("role", "student")
 
+### TEMPORARY: Hard-code role for development ###
+if email in ("engt1@southernct.edu", "marino1@southernct.edu", "muneerb1@southernct.edu"):
+    role = "ADMIN"
 
 def configure_page():
     st.set_page_config(
@@ -31,50 +57,57 @@ def configure_page():
         page_icon="🔍",
         layout="wide"
     )
+
+
+configure_page()
+
 with st.sidebar:
-    st.success(f"Logged in as {email}")               # changed to use email var
+    st.success(f"Logged in as {email}")
     st.caption(f"Role: {role}")
     if st.button("Log Out"):
         st.session_state.user = None
         st.session_state.page = "landing"
         st.rerun()
 
+
 def render_sidebar_filters():
     st.sidebar.title("Filters")
     with st.sidebar.expander("Hours per Week", expanded=False):
-        hours_filter = st.radio("", ["All", "0 to 5", "6 to 10", "10+"], index=0)
+        hours_filter = st.radio("", ["All", "0 to 5", "6 to 10", "10+"], index=0, key="hours_filter")
     with st.sidebar.expander("Compensation Type", expanded=False):
-        compensation_filter = st.radio("", ["All", "Paid", "Unpaid"], index=0)
+        compensation_filter = st.radio("", ["All", "Paid", "Unpaid"], index=0, key="comp_filter")
     with st.sidebar.expander("Faculty", expanded=False):
-        faculty_filter = st.radio("", options=["All"] + FACULTY_NAMES, index=0)
+        faculty_filter = st.radio("", options=["All"] + FACULTY_NAMES, index=0, key="faculty_filter")
     return hours_filter, compensation_filter, faculty_filter
 
+
 def render_listings(listings):
-    for listing in listings:
-        with st.container():
-            st.subheader(listing["title"])
-            st.write(f"**Principal Investigator:** {listing['pi']}")
-            st.write(f"**Additional Investigators/Team Members:** {listing['team']}")
-            st.write(f"**Department/Lab:** {listing['department']}")
-            st.write(f"**Skills Required:** {listing['skills']}")
-            st.write(f"**Number of Openings:** {listing['openings']}")
-            st.write(f"**Start Date:** {listing['start_date']}")
-            st.write(f"**Duration:** {listing['duration']}")
-            st.write(f"**Hourly Pay Rate:** ${listing['pay_rate']}")
-            st.write(f"**Number of Hours per Week:** {listing['weekly_hours']}")
-            st.write(f"**Summary/Description:** {listing['summary']}")
-            st.write(f"**Date Posted:** {listing['date_posted']}")
+    # Create centered column layout
+    col1, col2, col3 = st.columns([1, 3, 1])
+    
+    with col2:
+        for listing in listings:
+            with st.container(border=True):
+                st.subheader(listing["title"])
+                st.write(f"**Principal Investigator:** {listing['pi']}")
+                st.write(f"**Additional Collaborators:** {listing['team']}")
+                st.write(f"**Department/Lab:** {listing['department']}")
+                st.write(f"**Number of Openings:** {listing['openings']}")
+                st.write(f"**Start Date:** {listing['start_date']}")
+                st.write(f"**Duration:** {listing['duration']}")
+                st.write(f"**Number of Hours per Week:** {listing['weekly_hours']}")
+                st.write(f"**Hourly Pay Rate:** ${listing['pay_rate']}")
+                st.write(f"**Skills Required:** {listing['skills']}")
+                st.write(f"**Summary/Description:** {listing['summary']}")
+                st.write(f"**Date Posted:** {listing['date_posted']}")
+                st.write("")  # Add spacing between listings
+
 
 def main():
-    configure_page()
-    if "role" not in st.session_state:
-        st.session_state["role"] = "FACULTY"
-
     st.title("Research Opportunities 🔍")
     st.logo("images/scsu_logo.jpg", size="large")
-    user_role = st.session_state.get("role", "STUDENT")
 
-    if user_role == "FACULTY":
+    if role in ("FACULTY", "ADMIN"):
         tab1, tab2, tab3 = st.tabs(["Browse Listings", "Create Listing", "My Listings"])
     else:
         tab1, = st.tabs(["Browse Listings"])
@@ -82,7 +115,13 @@ def main():
     # Browse Listings
     with tab1:
         hours_filter, compensation_filter, faculty_filter = render_sidebar_filters()
+        
+        # Combine mock data with user-created listings
         listings = get_listings_data()
+        if "user_listings" in st.session_state:
+            # Add user listings at the beginning (most recent first)
+            listings = st.session_state.user_listings[::-1] + listings
+        
         filtered_listings = filter_listings(listings, hours_filter, compensation_filter, faculty_filter)
         if filtered_listings:
             render_listings(filtered_listings)
@@ -90,46 +129,179 @@ def main():
             st.info("No listings match your filters.")
 
     # Create Listing
-    if user_role == "FACULTY":
+    if role in ("FACULTY", "ADMIN"):
         with tab2:
             st.header("Create a New Research Listing")
             st.info("Fill out the form below and submit.")
 
-            # Use a container for a form-like layout
-            with st.container():
-                title = st.text_input("Project Title", value="")
-                # pi = st.text_input("Principal Investigator", value="")
-                pi = st.selectbox("Principal Investigator", options=[""] + FACULTY_NAMES)  # "" allows no default selection
+            # Create centered column layout
+            col1, col2, col3 = st.columns([1, 3, 1])
+            
+            with col2:
+                # Use a container for a form-like layout
+                with st.container(border=True):
+                    title = st.text_input("Project Title *", value="", placeholder="ex. Biometric Authentication Research")
+                    team = st.text_input("Investigators/Team Members", value="", placeholder="ex. Orlando Marin, Sana Muneer, Tatiana Eng")
+                    department = st.selectbox("Department/Lab *", options=["Computer Science", "Data Science"])
+                    openings = st.number_input("Number of Openings *", min_value=1, max_value=10, value=1, step=1)
+                    start_date = st.date_input("Start Date *")
+                    st.caption(f"Will display as: {start_date.strftime('%B %d, %Y')}")
+                    duration = st.selectbox("Duration *", options=["1 semester", "2 semesters", "More than 2 semesters"])
+                    weekly_hours = st.number_input("Number of Hours per Week *", min_value=1, value=1, step=1)
 
-                team = st.text_input("Additional Investigators/Team Members", value="")
-                department = st.text_input("Department/Lab", value="")
-                skills = st.text_area("Skills Required", value="")
-                openings = st.number_input("Number of Openings", min_value=1, max_value=10, value=1, step=1)
-                start_date = st.text_input("Start Date", value="")
-                duration = st.text_input("Duration", value="")
+                    # Compensation type and dynamic Hourly Pay Rate
+                    compensation_type = st.radio("Compensation Type *", ["Paid", "Unpaid"], index=None, key="comp_type")
+                    if compensation_type == "Paid":
+                        pay_rate = st.number_input(
+                            "Hourly Pay Rate ($) *",
+                            min_value=0.0,
+                            step=0.01,
+                            format="%.2f"
+                        )
 
-                # Compensation type and dynamic Hourly Pay Rate
-                compensation_type = st.radio("Compensation Type", ["Paid", "Unpaid"], index=None, key="comp_type")
-                if compensation_type == "Paid":
-                    pay_rate = st.number_input(
-                        "Hourly Pay Rate ($)",
-                        min_value=0.0,
-                        step=0.01,
-                        format="%.2f"
+                    st.write("Skills Required *")
+                    skills = st.multiselect(
+                        "Select skills",
+                        options=SKILLS_OPTIONS,
+                        default=None,
+                        placeholder="Select all that apply",
+                        label_visibility="collapsed"
                     )
 
-                weekly_hours = st.number_input("Number of Hours per Week", min_value=1, value=1, step=1)
-                summary = st.text_area("Summary/Description", value="")
-                date_posted = st.date_input("Date Posted")
+                    website_urls = st.text_input("Website URL(s)", value="", placeholder="ex. https://example.com")
+                    summary = st.text_area("Summary/Description *", value="")
+                    
+                    st.write("Preferred Method of Communication *")
+                    communication = st.multiselect(
+                        "Select communication methods",
+                        options=["Email", "Teams"],
+                        default=None,
+                        placeholder="Select all that apply",
+                        label_visibility="collapsed"
+                    )
 
-                submitted = st.button("Submit Listing")
-                if submitted:
-                    st.success(f"Listing '{title}' successfully created!")
+                    submitted = st.button("Post Listing")
+                    if submitted:
+                        # Validation: Check required fields
+                        errors = []
+                        if not title.strip():
+                            errors.append("Project Title")
+                        if not department:
+                            errors.append("Department/Lab")
+                        if openings < 1:
+                            errors.append("Number of Openings")
+                        if not start_date:
+                            errors.append("Start Date")
+                        if not duration:
+                            errors.append("Duration")
+                        if weekly_hours < 1:
+                            errors.append("Number of Hours per Week")
+                        if not compensation_type:
+                            errors.append("Compensation Type")
+                        if compensation_type == "Paid" and (not 'pay_rate' in locals() or pay_rate <= 0):
+                            errors.append("Hourly Pay Rate")
+                        if not skills:
+                            errors.append("Skills Required")
+                        if not summary.strip():
+                            errors.append("Summary/Description")
+                        if not communication:
+                            errors.append("Preferred Method of Communication")
+                        
+                        if errors:
+                            st.error(f"Please fill out the following required fields: {', '.join(errors)}")
+                        else:
+                            # Import datetime and profile utils
+                            from datetime import datetime
+                            from utils.profile_utils import get_user_profile
+                            
+                            # Auto-generate Date Posted in "Month Day, Year" format
+                            date_posted_formatted = datetime.now().strftime("%B %d, %Y")
+                            
+                            # Get user's name from profile
+                            profile_data = get_user_profile(uid)
+                            posted_by = profile_data.get('name', 'Unknown') if profile_data else 'Unknown'
+                            
+                            # Format other data
+                            start_date_formatted = start_date.strftime("%B %d, %Y")
+                            skills_str = ", ".join(skills)
+                            communication_str = ", ".join(communication)
+                            
+                            # Create new listing object
+                            new_listing = {
+                                "title": title,
+                                "pi": posted_by,
+                                "team": team if team else "n/a",
+                                "department": department,
+                                "skills": skills_str,
+                                "openings": openings,
+                                "start_date": start_date_formatted,
+                                "duration": duration,
+                                "pay_rate": pay_rate if compensation_type == "Paid" else 0,
+                                "weekly_hours": weekly_hours,
+                                "summary": summary,
+                                "date_posted": date_posted_formatted,
+                                "compensation_type": compensation_type.lower(),
+                                "website_urls": website_urls if website_urls else "n/a",
+                                "communication": communication_str,
+                                "posted_by_uid": uid
+                            }
+                            
+                            # Initialize listings in session state if not exists
+                            if "user_listings" not in st.session_state:
+                                st.session_state.user_listings = []
+                            
+                            # Add to session state
+                            st.session_state.user_listings.append(new_listing)
+                            
+                            # Store success message in session state
+                            st.session_state.listing_created = True
+                            st.session_state.listing_title = title
+                            st.session_state.listing_posted_by = posted_by
+                            st.session_state.listing_date = date_posted_formatted
+                            
+                            # Clear form by rerunning
+                            st.rerun()
+                    
+                    # Display success messages after rerun
+                    if st.session_state.get("listing_created", False):
+                        st.success(f"Listing '{st.session_state.listing_title}' successfully created!")
+                        st.info(f"Posted by {st.session_state.listing_posted_by} on {st.session_state.listing_date}")
+                        # Clear the flags
+                        st.session_state.listing_created = False
 
-    # My Listings
+        # My Listings
         with tab3:
             st.header("My Listings")
-            st.info("Faculty’s personal listings will appear here.")
+            
+            # Filter listings created by this user
+            if "user_listings" in st.session_state:
+                my_listings = [listing for listing in st.session_state.user_listings if listing.get("posted_by_uid") == uid]
+                
+                if my_listings:
+                    # Create centered column layout
+                    col1, col2, col3 = st.columns([1, 3, 1])
+                    
+                    with col2:
+                        for listing in my_listings:
+                            with st.container(border=True):
+                                st.subheader(listing["title"])
+                                st.write(f"**Principal Investigator:** {listing['pi']}")
+                                st.write(f"**Additional Collaborators:** {listing['team']}")
+                                st.write(f"**Department/Lab:** {listing['department']}")
+                                st.write(f"**Number of Openings:** {listing['openings']}")
+                                st.write(f"**Start Date:** {listing['start_date']}")
+                                st.write(f"**Duration:** {listing['duration']}")
+                                st.write(f"**Number of Hours per Week:** {listing['weekly_hours']}")
+                                st.write(f"**Hourly Pay Rate:** ${listing['pay_rate']}")
+                                st.write(f"**Skills Required:** {listing['skills']}")
+                                st.write(f"**Summary/Description:** {listing['summary']}")
+                                st.write(f"**Date Posted:** {listing['date_posted']}")
+                                st.write("")
+                else:
+                    st.info("You haven't created any listings yet.")
+            else:
+                st.info("You haven't created any listings yet.")
+
 
 if __name__ == "__main__":
     main()
