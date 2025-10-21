@@ -12,6 +12,7 @@ from utils.home_utils import (
     get_quick_actions, get_feature_descriptions,
     initialize_session_state
 )
+from utils.profile_utils import get_user_profile
 
 # --------- HOME PAGE ----------
 def main():
@@ -36,13 +37,33 @@ def configure_page():
     )
 
 def render_header():
-    """Render the header section with title, subtitle, logo, and greeting message."""
+    """Render the header section with title, logo, and personalized greeting."""
     st.title("Welcome to ResearchConnect 🦉")
-    st.subheader("Your gateway to research opportunities and academic resources at SCSU")
-    col1, col2, col3 = st.columns([1, 2, 1])
+    st.divider()
+
+    # Center the logo
+    col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
-        st.image("images/logo.png", width=300)
-    st.success("**Hello! I'm ResearchAI, your friendly AI assistant.**")
+        st.image("images/logo.png", width=700)
+
+    # Personalized greeting
+    user_session = st.session_state.get("user")
+    user_name = ""
+
+    if user_session:
+        uid = user_session.get("uid")
+        profile = get_user_profile(uid)
+        if profile and "name" in profile:
+            # Extract first name if full name exists
+            user_name = profile["name"].split()[0]
+
+    # Construct greeting message
+    if user_name:
+        greeting_msg = f"👋 **Hi {user_name}, I'm ResearchAI! I can help you find research opportunities, connect with faculty, or answer questions about academic resources.**"
+    else:
+        greeting_msg = "👋 **Hi, I'm ResearchAI! I can help you find research opportunities, connect with faculty, or answer questions about academic resources.**"     
+
+    st.success(greeting_msg)
     st.divider()
 
 def render_quick_actions():
@@ -54,7 +75,6 @@ def render_quick_actions():
         with cols[i]:
             if st.button(
                 action["text"],
-                type=action["type"],
                 use_container_width=True,
                 help=action["help"]
             ):
@@ -83,13 +103,13 @@ def render_features():
         st.write(f"**{features['resources']['subtitle']}**")
         col1, col2 = st.columns(2)
         with col1:
-            st.write("**🔬 Academic Support:**")
+            st.write("**Academic Support:**")
             for item in features["resources"]["academic_support"]:
-                st.write(f"• {item}")
+                st.write(f"✏️ {item}")
         with col2:
-            st.write("**💼 Career Services:**")
+            st.write("**Career Services:**")
             for item in features["resources"]["career_services"]:
-                st.write(f"• {item}")
+                st.write(f"💼 {item}")
 
 def render_feature_list(items, icon="✅"):
     """Render a two-column list of features or benefits with optional icons.

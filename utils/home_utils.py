@@ -20,19 +20,16 @@ def get_quick_actions():
         {
             "text": "🧠 Ask ResearchAI",
             "page": "pages/chatbot.py",
-            "type": "primary",
             "help": "Get instant answers about research opportunities"
         },
         {
             "text": "📋 Browse Research", 
             "page": "pages/listings.py",
-            "type": "secondary",
             "help": "Explore current faculty-led projects"
         },
         {
             "text": "📚 Find Resources",
             "page": "pages/resources.py", 
-            "type": "secondary",
             "help": "Discover campus support services"
         }
     ]
@@ -67,23 +64,23 @@ def get_feature_descriptions():
                 "View detailed project descriptions",
                 "Connect directly with faculty researchers", 
                 "Find both undergraduate and graduate opportunities",
-                "Updated regularly with new opportunities across all disciplines"
+                "Updated regularly with new opportunities"
             ]
         },
         "resources": {
             "title": "📚 Campus Resources", 
             "subtitle": "Your comprehensive guide to SCSU's academic and career support services",
             "academic_support": [
-                "STEM Center resources and programs",
-                "Research methodology workshops",
-                "Academic writing support", 
-                "Statistical analysis assistance"
+                "Center for Academic Successs and Accessibility Services (CASAS)",
+                "Mentor Academic Partnership (MAP) Program",
+                "Faculty office hours",
+                "Academic clubs", 
             ],
             "career_services": [
                 "Office of Career and Professional Development",
-                "Internship and fellowship programs",
-                "Women in Leadership Academy",
-                "Business career resources"
+                "Office for STEM Research and Innovation",
+                "JOBSs Online Job Board",
+                "Innovation Hub",
             ]
         }
     }
