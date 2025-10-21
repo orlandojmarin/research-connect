@@ -7,5 +7,5 @@ primaryColor = "#D97706"  # Warm amber (owl's eye and accent)
 backgroundColor = "#1E2D24"  # Dark forest green (main background)
 secondaryBackgroundColor = "#2F3E35"  # Muted green-gray (panel/sidebar background)
 textColor = "#F5F5F5"  # Off-white (primary text)
-borderColor = "#6B7280" #  # Warm amber (owl's eye and accent)
+borderColor = "#6B7280" # Light gray border color
 font = "sans serif"
