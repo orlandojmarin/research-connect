@@ -1,14 +1,16 @@
 # TATIANA
 # listings.py
 
-# add captions/examples for each field
-# make fields required
-# add a field for application instructions
-# add a field for professor's website
-# change submit button to say "Post Listing"
-
 import streamlit as st
-from utils.listings_utils import get_listings_data, filter_listings
+from utils.listings_utils import (
+    get_listings_data, 
+    filter_listings, 
+    save_listing_to_firebase,
+    get_all_listings_from_firebase,
+    get_user_listings_from_firebase
+)
+from datetime import datetime
+from utils.profile_utils import get_user_profile
 
 FACULTY_NAMES = [
     "Amal Abd El-Raouf",
@@ -116,11 +118,13 @@ def main():
     with tab1:
         hours_filter, compensation_filter, faculty_filter = render_sidebar_filters()
         
-        # Combine mock data with user-created listings
+        # Combine mock data with Firebase listings
         listings = get_listings_data()
-        if "user_listings" in st.session_state:
-            # Add user listings at the beginning (most recent first)
-            listings = st.session_state.user_listings[::-1] + listings
+        firebase_listings = get_all_listings_from_firebase()
+        
+        # Add Firebase listings at the beginning (most recent first)
+        if firebase_listings:
+            listings = firebase_listings[::-1] + listings
         
         filtered_listings = filter_listings(listings, hours_filter, compensation_filter, faculty_filter)
         if filtered_listings:
@@ -210,10 +214,6 @@ def main():
                         if errors:
                             st.error(f"Please fill out the following required fields: {', '.join(errors)}")
                         else:
-                            # Import datetime and profile utils
-                            from datetime import datetime
-                            from utils.profile_utils import get_user_profile
-                            
                             # Auto-generate Date Posted in "Month Day, Year" format
                             date_posted_formatted = datetime.now().strftime("%B %d, %Y")
                             
@@ -243,24 +243,24 @@ def main():
                                 "compensation_type": compensation_type.lower(),
                                 "website_urls": website_urls if website_urls else "n/a",
                                 "communication": communication_str,
-                                "posted_by_uid": uid
+                                "posted_by_uid": uid,
+                                "posted_by_email": email
                             }
                             
-                            # Initialize listings in session state if not exists
-                            if "user_listings" not in st.session_state:
-                                st.session_state.user_listings = []
-                            
-                            # Add to session state
-                            st.session_state.user_listings.append(new_listing)
-                            
-                            # Store success message in session state
-                            st.session_state.listing_created = True
-                            st.session_state.listing_title = title
-                            st.session_state.listing_posted_by = posted_by
-                            st.session_state.listing_date = date_posted_formatted
-                            
-                            # Clear form by rerunning
-                            st.rerun()
+                            try:
+                                # Save to Firebase
+                                listing_id = save_listing_to_firebase(new_listing)
+                                
+                                # Store success message in session state
+                                st.session_state.listing_created = True
+                                st.session_state.listing_title = title
+                                st.session_state.listing_posted_by = posted_by
+                                st.session_state.listing_date = date_posted_formatted
+                                
+                                # Clear form by rerunning
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Failed to create listing: {e}")
                     
                     # Display success messages after rerun
                     if st.session_state.get("listing_created", False):
@@ -273,32 +273,29 @@ def main():
         with tab3:
             st.header("My Listings")
             
-            # Filter listings created by this user
-            if "user_listings" in st.session_state:
-                my_listings = [listing for listing in st.session_state.user_listings if listing.get("posted_by_uid") == uid]
+            # Get listings created by this user from Firebase
+            my_listings = get_user_listings_from_firebase(uid)
+            
+            if my_listings:
+                # Create centered column layout
+                col1, col2, col3 = st.columns([1, 3, 1])
                 
-                if my_listings:
-                    # Create centered column layout
-                    col1, col2, col3 = st.columns([1, 3, 1])
-                    
-                    with col2:
-                        for listing in my_listings:
-                            with st.container(border=True):
-                                st.subheader(listing["title"])
-                                st.write(f"**Principal Investigator:** {listing['pi']}")
-                                st.write(f"**Additional Collaborators:** {listing['team']}")
-                                st.write(f"**Department/Lab:** {listing['department']}")
-                                st.write(f"**Number of Openings:** {listing['openings']}")
-                                st.write(f"**Start Date:** {listing['start_date']}")
-                                st.write(f"**Duration:** {listing['duration']}")
-                                st.write(f"**Number of Hours per Week:** {listing['weekly_hours']}")
-                                st.write(f"**Hourly Pay Rate:** ${listing['pay_rate']}")
-                                st.write(f"**Skills Required:** {listing['skills']}")
-                                st.write(f"**Summary/Description:** {listing['summary']}")
-                                st.write(f"**Date Posted:** {listing['date_posted']}")
-                                st.write("")
-                else:
-                    st.info("You haven't created any listings yet.")
+                with col2:
+                    for listing in my_listings[::-1]:  # Most recent first
+                        with st.container(border=True):
+                            st.subheader(listing["title"])
+                            st.write(f"**Principal Investigator:** {listing['pi']}")
+                            st.write(f"**Additional Collaborators:** {listing['team']}")
+                            st.write(f"**Department/Lab:** {listing['department']}")
+                            st.write(f"**Number of Openings:** {listing['openings']}")
+                            st.write(f"**Start Date:** {listing['start_date']}")
+                            st.write(f"**Duration:** {listing['duration']}")
+                            st.write(f"**Number of Hours per Week:** {listing['weekly_hours']}")
+                            st.write(f"**Hourly Pay Rate:** ${listing['pay_rate']}")
+                            st.write(f"**Skills Required:** {listing['skills']}")
+                            st.write(f"**Summary/Description:** {listing['summary']}")
+                            st.write(f"**Date Posted:** {listing['date_posted']}")
+                            st.write("")
             else:
                 st.info("You haven't created any listings yet.")
 
