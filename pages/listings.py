@@ -138,29 +138,44 @@ def main():
             st.header("Create a New Research Listing")
             st.info("Fill out the form below and submit.")
 
+            # Initialize form counter if not exists
+            if "form_counter" not in st.session_state:
+                st.session_state.form_counter = 0
+
             # Create centered column layout
             col1, col2, col3 = st.columns([1, 3, 1])
             
             with col2:
+                # Display success messages at the top if they exist
+                if st.session_state.get("listing_created", False):
+                    st.success(f"Listing '{st.session_state.listing_title}' successfully created!")
+                    st.info(f"Posted by {st.session_state.listing_posted_by} on {st.session_state.listing_date}")
+                    # Clear the flags after displaying
+                    st.session_state.listing_created = False
+                
                 # Use a container for a form-like layout
                 with st.container(border=True):
-                    title = st.text_input("Project Title *", value="", placeholder="ex. Biometric Authentication Research")
-                    team = st.text_input("Investigators/Team Members", value="", placeholder="ex. Orlando Marin, Sana Muneer, Tatiana Eng")
-                    department = st.selectbox("Department/Lab *", options=["Computer Science", "Data Science"])
-                    openings = st.number_input("Number of Openings *", min_value=1, max_value=10, value=1, step=1)
-                    start_date = st.date_input("Start Date *")
+                    # Add form counter to keys to force reset
+                    form_key = st.session_state.form_counter
+                    
+                    title = st.text_input("Project Title *", value="", placeholder="ex. Biometric Authentication Research", key=f"title_input_{form_key}")
+                    team = st.text_input("Investigators/Team Members", value="", placeholder="ex. Orlando Marin, Sana Muneer, Tatiana Eng", key=f"team_input_{form_key}")
+                    department = st.selectbox("Department/Lab *", options=["Computer Science", "Data Science"], index=0, key=f"dept_input_{form_key}")
+                    openings = st.number_input("Number of Openings *", min_value=1, max_value=10, value=1, step=1, key=f"openings_input_{form_key}")
+                    start_date = st.date_input("Start Date *", key=f"start_date_input_{form_key}")
                     st.caption(f"Will display as: {start_date.strftime('%B %d, %Y')}")
-                    duration = st.selectbox("Duration *", options=["1 semester", "2 semesters", "More than 2 semesters"])
-                    weekly_hours = st.number_input("Number of Hours per Week *", min_value=1, value=1, step=1)
+                    duration = st.selectbox("Duration *", options=["1 semester", "2 semesters", "More than 2 semesters"], index=0, key=f"duration_input_{form_key}")
+                    weekly_hours = st.number_input("Number of Hours per Week *", min_value=1, value=1, step=1, key=f"hours_input_{form_key}")
 
                     # Compensation type and dynamic Hourly Pay Rate
-                    compensation_type = st.radio("Compensation Type *", ["Paid", "Unpaid"], index=None, key="comp_type")
+                    compensation_type = st.radio("Compensation Type *", ["Paid", "Unpaid"], index=None, key=f"comp_type_{form_key}")
                     if compensation_type == "Paid":
                         pay_rate = st.number_input(
                             "Hourly Pay Rate ($) *",
                             min_value=0.0,
                             step=0.01,
-                            format="%.2f"
+                            format="%.2f",
+                            key=f"pay_rate_input_{form_key}"
                         )
 
                     st.write("Skills Required *")
@@ -169,11 +184,12 @@ def main():
                         options=SKILLS_OPTIONS,
                         default=None,
                         placeholder="Select all that apply",
-                        label_visibility="collapsed"
+                        label_visibility="collapsed",
+                        key=f"skills_input_{form_key}"
                     )
 
-                    website_urls = st.text_input("Website URL(s)", value="", placeholder="ex. https://example.com")
-                    summary = st.text_area("Summary/Description *", value="")
+                    website_urls = st.text_input("Website URL(s)", value="", placeholder="ex. https://example.com", key=f"website_input_{form_key}")
+                    summary = st.text_area("Summary/Description *", value="", key=f"summary_input_{form_key}")
                     
                     st.write("Preferred Method of Communication *")
                     communication = st.multiselect(
@@ -181,7 +197,8 @@ def main():
                         options=["Email", "Teams"],
                         default=None,
                         placeholder="Select all that apply",
-                        label_visibility="collapsed"
+                        label_visibility="collapsed",
+                        key=f"comm_input_{form_key}"
                     )
 
                     submitted = st.button("Post Listing")
@@ -257,17 +274,13 @@ def main():
                                 st.session_state.listing_posted_by = posted_by
                                 st.session_state.listing_date = date_posted_formatted
                                 
+                                # Increment form counter to reset all fields
+                                st.session_state.form_counter += 1
+                                
                                 # Clear form by rerunning
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"Failed to create listing: {e}")
-                    
-                    # Display success messages after rerun
-                    if st.session_state.get("listing_created", False):
-                        st.success(f"Listing '{st.session_state.listing_title}' successfully created!")
-                        st.info(f"Posted by {st.session_state.listing_posted_by} on {st.session_state.listing_date}")
-                        # Clear the flags
-                        st.session_state.listing_created = False
 
         # My Listings
         with tab3:
