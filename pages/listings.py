@@ -1,4 +1,5 @@
 # TATIANA
+# listings.py
 
 import streamlit as st
 from utils.listings_utils import get_listings_data, filter_listings
@@ -12,6 +13,21 @@ FACULTY_NAMES = [
     "Mohammad Islam",
     "Sahar Al Seesi",
     "Winnie Yu"
+]
+
+SKILLS_OPTIONS = [
+    "Python",
+    "Java",
+    "C++",
+    "SQL",
+    "Web Development (HTML, CSS, JavaScript)",
+    "Data Science",
+    "Artificial Intelligence/Machine Learning",
+    "Data Visualization",
+    "Software Development",
+    "Cloud Computing (AWS, Azure, GCP)",
+    "Database Design and Management",
+    "Research Methods / Experimental Design"
 ]
 
 # Check if user is logged in
@@ -68,14 +84,14 @@ def render_listings(listings):
             with st.container(border=True):
                 st.subheader(listing["title"])
                 st.write(f"**Principal Investigator:** {listing['pi']}")
-                st.write(f"**Additional Investigators/Team Members:** {listing['team']}")
+                st.write(f"**Additional Collaborators:** {listing['team']}")
                 st.write(f"**Department/Lab:** {listing['department']}")
-                st.write(f"**Skills Required:** {listing['skills']}")
                 st.write(f"**Number of Openings:** {listing['openings']}")
                 st.write(f"**Start Date:** {listing['start_date']}")
                 st.write(f"**Duration:** {listing['duration']}")
-                st.write(f"**Hourly Pay Rate:** ${listing['pay_rate']}")
                 st.write(f"**Number of Hours per Week:** {listing['weekly_hours']}")
+                st.write(f"**Hourly Pay Rate:** ${listing['pay_rate']}")
+                st.write(f"**Skills Required:** {listing['skills']}")
                 st.write(f"**Summary/Description:** {listing['summary']}")
                 st.write(f"**Date Posted:** {listing['date_posted']}")
                 st.write("")  # Add spacing between listings
@@ -114,13 +130,13 @@ def main():
                 with st.container(border=True):
                     title = st.text_input("Project Title", value="")
                     pi = st.selectbox("Principal Investigator", options=[""] + FACULTY_NAMES)
-
                     team = st.text_input("Additional Investigators/Team Members", value="")
                     department = st.text_input("Department/Lab", value="")
-                    skills = st.text_area("Skills Required", value="")
                     openings = st.number_input("Number of Openings", min_value=1, max_value=10, value=1, step=1)
-                    start_date = st.text_input("Start Date", value="")
+                    start_date = st.date_input("Start Date")
+                    st.caption(f"Will display as: {start_date.strftime('%B %d, %Y')}")
                     duration = st.text_input("Duration", value="")
+                    weekly_hours = st.number_input("Number of Hours per Week", min_value=1, value=1, step=1)
 
                     # Compensation type and dynamic Hourly Pay Rate
                     compensation_type = st.radio("Compensation Type", ["Paid", "Unpaid"], index=None, key="comp_type")
@@ -132,13 +148,31 @@ def main():
                             format="%.2f"
                         )
 
-                    weekly_hours = st.number_input("Number of Hours per Week", min_value=1, value=1, step=1)
+                    st.write("Skills Required (Select all that apply.)")
+                    skills = st.multiselect(
+                        "Select skills",
+                        options=SKILLS_OPTIONS,
+                        default=None,
+                        label_visibility="collapsed"
+                    )
+
                     summary = st.text_area("Summary/Description", value="")
                     date_posted = st.date_input("Date Posted")
+                    st.caption(f"Will display as: {date_posted.strftime('%B %d, %Y')}")
 
-                    submitted = st.button("Submit")
+                    submitted = st.button("Submit Listing")
                     if submitted:
-                        st.success(f"Listing '{title}' successfully created!")
+                        # Format dates as "Month Day, Year"
+                        start_date_formatted = start_date.strftime("%B %d, %Y")
+                        date_posted_formatted = date_posted.strftime("%B %d, %Y")
+                        
+                        if skills:
+                            skills_str = ", ".join(skills)
+                            st.success(f"Listing '{title}' successfully created!")
+                            st.info(f"Start Date: {start_date_formatted} | Date Posted: {date_posted_formatted}")
+                        else:
+                            st.success(f"Listing '{title}' successfully created!")
+                            st.info(f"Start Date: {start_date_formatted} | Date Posted: {date_posted_formatted}")
 
         # My Listings
         with tab3:
