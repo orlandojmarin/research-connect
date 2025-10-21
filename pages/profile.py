@@ -68,6 +68,8 @@ def render_profile():
 
 def main():
     """Main function to render the Profile page"""
+    st.logo("images/scsu_logo.jpg", size="large")
+    
     st.set_page_config(page_title="My Profile | ResearchConnect SCSU", page_icon="👤", layout="centered")
 
     # Sidebar

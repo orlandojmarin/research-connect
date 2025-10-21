@@ -183,7 +183,7 @@ def render_landing():
     # --- Title & subtitle remain full width and centered ---
     st.markdown("<h1 style='text-align: center;'>ResearchConnect SCSU</h1>", unsafe_allow_html=True)
     st.markdown(
-        "<p style='text-align: center; font-size: 18px; color: #666;'>Connecting Students with Research Opportunities</p>",
+        "<p style='text-align: center; font-size: 18px; color: #EDEDED;'>Connecting Students with Research Opportunities</p>",
         unsafe_allow_html=True
     )
     st.write("")
