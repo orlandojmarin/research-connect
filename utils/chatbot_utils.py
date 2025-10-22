@@ -36,20 +36,12 @@ def initialize_vertex_ai():
         print(f"Failed to initialize Vertex AI: {e}")
         return None
 
-
 def initialize_chat_session():
     """
-    Initialize chat session state and welcome message
+    Initialize chat session state without an initial welcome message.
     """
     if "messages" not in st.session_state:
         st.session_state.messages = []
-        # Add welcome message
-        welcome_message = {
-            "role": "assistant",
-            "content": "Hello! I'm ResearchAI, your friendly assistant for all things research at SCSU. How can I help you today?",
-            "timestamp": datetime.datetime.now()
-        }
-        st.session_state.messages.append(welcome_message)
 
 def get_sidebar_info():
     """
