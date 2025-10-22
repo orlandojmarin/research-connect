@@ -59,35 +59,65 @@ def strong_password(pw: str):
 
 def friendly_firebase_error(err: Exception) -> str:
     """Convert Firebase REST API errors into user-friendly messages."""
-    default_msg = "Couldn’t complete that. Please try again."
+    default_msg = "Couldn't complete that. Please try again."
+    
+    # Try to extract error information from HTTPError
     if isinstance(err, HTTPError) and err.response is not None:
         try:
+            # Try to parse JSON response
             data = err.response.json()
         except Exception:
             try:
                 data = json.loads(err.response.text)
             except Exception:
                 data = None
+        
         if data:
-            code = (data.get("error", {}) or {}).get("message", "")
+            # Get error message from Firebase response
+            error_info = data.get("error", {})
+            if isinstance(error_info, dict):
+                code = error_info.get("message", "")
+            else:
+                code = str(error_info)
+            
+            # Map Firebase error codes to user-friendly messages with SPECIFIC details
             mapping = {
-                "INVALID_EMAIL": "That email doesn’t look valid.",
-                "WEAK_PASSWORD : Password should be at least 6 characters":
-                    "Password is too weak. Use at least 8 characters with letters and numbers.",
-                "OPERATION_NOT_ALLOWED": "Email/password sign-ups are disabled in Firebase.",
-                "TOO_MANY_ATTEMPTS_TRY_LATER": "Too many attempts right now. Please wait a minute and try again.",
+                "INVALID_EMAIL": "That email address doesn't look valid. Please check for typos.",
+                "EMAIL_NOT_FOUND": "No account exists with this email address. Please create an account first or check for typos.",
+                "INVALID_PASSWORD": "The password you entered is incorrect. Please try again.",
+                "WRONG_PASSWORD": "The password you entered is incorrect. Please try again.",
+                "USER_DISABLED": "This account has been disabled by an administrator. Please contact support.",
+                "WEAK_PASSWORD": "Password is too weak. Use at least 8 characters with letters and numbers.",
+                "TOO_MANY_ATTEMPTS_TRY_LATER": "Too many failed login attempts. Please wait a few minutes and try again.",
+                "EMAIL_EXISTS": "An account with this email already exists. Please log in instead.",
+                "OPERATION_NOT_ALLOWED": "Email/password authentication is currently disabled.",
                 "MISSING_PASSWORD": "Please enter a password.",
-                "MISSING_EMAIL": "Please enter an email.",
-                "EMAIL_NOT_FOUND": "No account found for that email.",
-                "INVALID_PASSWORD": "Incorrect password.",
-                "USER_DISABLED": "This account has been disabled by an administrator.",
-                "INVALID_LOGIN_CREDENTIALS": "Incorrect email or password.",
+                "MISSING_EMAIL": "Please enter an email address.",
             }
+            
+            # Check for exact matches first
             for key, nice in mapping.items():
                 if key in code:
                     return nice
+            
+            # Special handling for INVALID_LOGIN_CREDENTIALS - check context
+            if "INVALID_LOGIN_CREDENTIALS" in code:
+                # This is Firebase's generic error - we can't tell which is wrong
+                return "The email or password you entered is incorrect. Please check both and try again."
+            
+            # If no exact match, return a cleaned up version of the error code
             if code:
                 return code.replace("_", " ").capitalize()
+    
+    # Check if it's a general exception with a message
+    error_msg = str(err)
+    if "EMAIL_NOT_FOUND" in error_msg:
+        return "No account exists with this email address. Please create an account first or check for typos."
+    if "INVALID_PASSWORD" in error_msg or "WRONG_PASSWORD" in error_msg:
+        return "The password you entered is incorrect. Please try again."
+    if "INVALID_LOGIN_CREDENTIALS" in error_msg:
+        return "The email or password you entered is incorrect. Please check both and try again."
+    
     return default_msg
 
 def delete_self_account(id_token: str):
@@ -142,10 +172,17 @@ def create_account(email: str, password: str, first_name: str, last_name: str):
 
 def sign_in(email: str, password: str):
     """Sign in a Firebase user and return (uid, id_token)."""
-    user = auth.sign_in_with_email_and_password(email, password)
-    info = auth.get_account_info(user["idToken"])
-    uid = info["users"][0]["localId"]
-    return uid, user["idToken"]
+    try:
+        user = auth.sign_in_with_email_and_password(email, password)
+        info = auth.get_account_info(user["idToken"])
+        uid = info["users"][0]["localId"]
+        return uid, user["idToken"]
+    except HTTPError as e:
+        # Re-raise with the original error so friendly_firebase_error can parse it
+        raise e
+    except Exception as e:
+        # For non-HTTP errors, wrap them in a more informative message
+        raise Exception(f"Login failed: {str(e)}")
 
 def go(page: str):
     """Set the Streamlit session state page to navigate between app pages."""
@@ -156,3 +193,4 @@ def logout():
     st.session_state.user = None
     st.session_state.page = "landing"
 
+#-----END OF FILE-----
