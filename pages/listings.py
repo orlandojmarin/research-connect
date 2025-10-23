@@ -64,7 +64,7 @@ configure_page()
 with st.sidebar:
     st.success(f"Logged in as {email}")
     st.caption(f"Role: {role}")
-    if st.button("Log Out"):
+    if st.button("Log Out", use_container_width=True):
         st.session_state.user = None
         st.session_state.page = "landing"
         st.rerun()

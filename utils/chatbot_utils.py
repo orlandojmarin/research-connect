@@ -168,3 +168,5 @@ def log_conversation(user_input, bot_response):
         st.session_state.conversation_log = []
     
     st.session_state.conversation_log.append(log_entry)
+
+#-----END OF FILE-----

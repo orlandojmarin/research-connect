@@ -175,7 +175,7 @@ def auth_gate():
         # Theme tip
         render_theme_tip()
 
-        if st.button("Log Out"):
+        if st.button("Log Out", use_container_width=True):
             # Clear user session
             st.session_state.user = None
             st.session_state.page = "landing"

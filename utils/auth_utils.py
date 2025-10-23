@@ -134,8 +134,6 @@ def delete_self_account(id_token: str):
     r = requests.post(url, json={"idToken": id_token}, timeout=10)
     r.raise_for_status()
 
-# ORLANDO'S CODE ADDED
-
 # ============================ AUTH OPERATIONS ============================
 
 def create_account(email: str, password: str, first_name: str, last_name: str):
