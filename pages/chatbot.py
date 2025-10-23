@@ -132,7 +132,7 @@ def handle_user_input():
     """Handle user input and generate responses"""
     # Chat input at the bottom
     prompt = st.chat_input(
-        placeholder="Ask ResearchAI about research opportunities, campus resources, or anything else...",
+        placeholder="Ask ResearchAI about research opportunities or campus resources...",
         key="chat_input"
     )
     
@@ -143,10 +143,7 @@ def handle_user_input():
         
         # Show loading spinner while generating response
         with st.spinner("🤔 ResearchAI is thinking..."):
-            # Simulate processing time
-            time.sleep(random.uniform(1, 2.5))
-            
-            # Generate response
+            # Generate response (removed artificial delay)
             response = generate_chatbot_response(prompt)
         
         # Add assistant response to history
@@ -161,4 +158,4 @@ def handle_user_input():
 if __name__ == "__main__":
     main()
 
-#-----END OF FILE-----
+# #-----END OF FILE-----

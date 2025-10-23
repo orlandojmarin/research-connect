@@ -15,9 +15,10 @@ from vertexai.generative_models import GenerativeModel
 # Load environment variables
 load_dotenv()
 
+@st.cache_resource
 def initialize_vertex_ai():
     """
-    Initialize Vertex AI connection
+    Initialize Vertex AI connection with caching to avoid repeated initializations
     
     Returns:
         GenerativeModel or None: Initialized model or None if fails
@@ -110,6 +111,7 @@ def generate_chatbot_response(user_input):
     Returns:
         str: Generated response
     """
+    # Get cached model instance
     model = initialize_vertex_ai()
     
     if not model:
