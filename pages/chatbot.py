@@ -21,11 +21,11 @@ role  = user.get("role", "student")
 
 with st.sidebar:
     st.success(f"Logged in as {email}")
-    st.caption(f"Role: {role}")
-    if st.button("Log Out"):
+    if st.button("Log Out", use_container_width=True):
         st.session_state.user = None
         st.session_state.page = "landing"
         st.rerun()
+    st.divider()
 
 def main():
     """Main function to render the chatbot page"""
@@ -53,17 +53,7 @@ def render_sidebar():
     """Render sidebar with chatbot info and statistics"""
     st.logo("images/scsu_logo.jpg", size="large")
     
-    sidebar_config = get_sidebar_info()
-    
     with st.sidebar:
-        # Assistant description
-        st.subheader(sidebar_config["assistant_description"]["title"])
-        st.write("I'm here to help you with:")
-        for topic in sidebar_config["assistant_description"]["help_topics"]:
-            st.write(f"• {topic}")
-        
-        st.divider()
-        
         # Clear conversation button
         if st.button("🔄 Clear Conversation", type="secondary", use_container_width=True):
             clear_conversation()
@@ -76,73 +66,43 @@ def render_header():
     st.divider()
 
 def render_chat_interface():
-    """Render the main chat interface with side-by-side layout using native Streamlit."""
-    
-    # Initialize expander state tracking if not exists
-    if "expander_states" not in st.session_state:
-        st.session_state.expander_states = {}
-    
-    # Group messages into pairs (user prompt + assistant response)
-    message_pairs = []
-    temp_user = None
-    
-    for message in st.session_state.messages:
-        if message["role"] == "user":
-            temp_user = message
-        elif message["role"] == "assistant" and temp_user:
-            message_pairs.append((temp_user, message))
-            temp_user = None
-    
-    # Display each pair side by side
-    for idx, (user_msg, assistant_msg) in enumerate(message_pairs):
-        col_left, col_right = st.columns([1, 1], gap="large")
-        
-        # Create unique key based on message content and timestamp for persistence
-        expander_key = f"expander_{user_msg['timestamp'].strftime('%Y%m%d%H%M%S%f')}"
-        
-        # Initialize expander state if not exists (default to True for new messages)
-        if expander_key not in st.session_state.expander_states:
-            st.session_state.expander_states[expander_key] = True
-        
-        with col_left:
-            with st.chat_message("user"):
-                # Create columns within the chat message for prompt and timestamp
-                msg_col1, msg_col2 = st.columns([4, 1])
-                with msg_col1:
-                    st.write(user_msg['content'])
-                with msg_col2:
-                    st.caption(f"🕒 {user_msg['timestamp'].strftime('%I:%M %p')}")
-        
-        with col_right:
-            # Use stored state for expanded parameter
-            with st.expander(
-                "**ResearchAI Response** 🦉", 
-                expanded=st.session_state.expander_states[expander_key]
-            ):
-                # Container with fixed height and scrolling
-                st.markdown(
-                    """
-                    <style>
-                    .scrollable-response {
-                        max-height: 400px;
-                        overflow-y: auto;
-                        padding-right: 10px;
-                    }
-                    </style>
-                    """,
-                    unsafe_allow_html=True
-                )
-                st.markdown(
-                    f'<div class="scrollable-response">{assistant_msg["content"]}</div>',
-                    unsafe_allow_html=True
-                )
-                st.caption(f"🕒 {assistant_msg['timestamp'].strftime('%I:%M %p')}")
+    """Render the main chat interface with vertical layout using native Streamlit."""
+    for idx, message in enumerate(st.session_state.messages):
+        with st.container():
+            if message["role"] == "user":
+                render_user_message(message)
+            elif message["role"] == "assistant":
+                render_assistant_message(message, idx)
+
+def render_user_message(message):
+    """Render a user message in vertical layout with timestamp at bottom-left."""
+    with st.chat_message("user"):
+        content_container = st.container()
+        with content_container:
+            if "summary" in message and len(message['content']) > 150:
+                with st.expander(f"**{message['summary']}**", expanded=False):
+                    st.write(message['content'])
+            else:
+                st.write(message['content'])
+
+        # Always show timestamp in the same bottom-left area
+        st.caption(f"🕒 {message['timestamp'].strftime('%I:%M %p')}")
+
+
+def render_assistant_message(message, idx):
+    """Render an assistant message with timestamp bottom-left aligned."""
+    with st.chat_message("assistant", avatar="🦉"):
+        content_container = st.container()
+        with content_container:
+            st.markdown(message['content'])
+        st.caption(f"🕒 {message['timestamp'].strftime('%I:%M %p')}")
+
 
 def handle_user_input():
     """Handle user input and generate responses"""
     # Chat input at the bottom
     prompt = st.chat_input(
-        placeholder="Ask ResearchAI about research opportunities, campus resources, or anything else...",
+        placeholder="Ask ResearchAI about research opportunities or campus resources...",
         key="chat_input"
     )
     
@@ -153,9 +113,6 @@ def handle_user_input():
         
         # Show loading spinner while generating response
         with st.spinner("🤔 ResearchAI is thinking..."):
-            # Simulate processing time
-            time.sleep(random.uniform(1, 2.5))
-            
             # Generate response
             response = generate_chatbot_response(prompt)
         

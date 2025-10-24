@@ -30,7 +30,7 @@ def render_sidebar():
         
         st.divider()
         
-        if st.button("Log Out"):
+        if st.button("Log Out", use_container_width=True):
             st.session_state.user = None
             go("landing")
             st.rerun()
