@@ -1,3 +1,279 @@
+# # ORLANDO
+# # Streamlit Documentation: https://docs.streamlit.io/get-started 
+# # Run the app with streamlit run home.py
+
+# import streamlit as st
+# import time
+# import random
+# from utils.chatbot_utils import (initialize_chat_session,get_sidebar_info,clear_conversation,
+# add_user_message,add_assistant_message,generate_chatbot_response,log_conversation)
+
+# # --- USER BADGE + LOG OUT and Auth gate ---
+# if "user" not in st.session_state or st.session_state.user is None:
+#     st.switch_page("home.py")
+#     st.stop()
+
+# # NEW — grab user info for this page
+# user = st.session_state.user              
+# email = user["email"]                     
+# uid   = user["uid"]                       
+# role  = user.get("role", "student")       
+
+# with st.sidebar:
+#     st.success(f"Logged in as {email}")
+#     if st.button("Log Out", use_container_width=True):
+#         st.session_state.user = None
+#         st.session_state.page = "landing"
+#         st.rerun()
+#     st.divider()
+
+# def main():
+#     """Main function to render the chatbot page"""
+#     # Configure page
+#     configure_page()
+    
+#     # Initialize chat session
+#     initialize_chat_session()
+    
+#     # Render page components
+#     render_sidebar()
+#     render_header()
+#     render_chat_interface()
+#     handle_user_input()
+
+# def configure_page():
+#     """Configure page settings and metadata"""
+#     st.set_page_config(
+#         page_title="ResearchAI Chatbot - ResearchConnect SCSU",
+#         page_icon="🧠",
+#         layout="wide"
+#     )
+
+# def render_sidebar():
+#     """Render sidebar with chatbot info and statistics"""
+#     st.logo("images/scsu_logo.jpg", size="large")
+    
+#     with st.sidebar:
+#         # Clear conversation button
+#         if st.button("🔄 Clear Conversation", type="secondary", use_container_width=True):
+#             clear_conversation()
+#             st.rerun()
+
+# def render_header():
+#     """Render main page header"""
+#     st.title("ResearchAI Chatbot 🧠")
+#     st.subheader("Your intelligent assistant for research opportunities and campus resources at SCSU")
+#     st.divider()
+
+# def render_chat_interface():
+#     """Render the main chat interface with vertical layout using native Streamlit."""
+    
+#     # Display all messages in chronological order (vertical layout)
+#     for idx, message in enumerate(st.session_state.messages):
+#         if message["role"] == "user":
+#             render_user_message(message)
+#         elif message["role"] == "assistant":
+#             render_assistant_message(message, idx)
+
+# def render_user_message(message):
+#     """Render a user message in vertical layout"""
+#     with st.chat_message("user"):
+#         # Check if prompt is long and has a summary
+#         if "summary" in message and len(message['content']) > 200:
+#             # Long prompt: show in expander with timestamp inside
+#             with st.expander(f"**{message['summary']}**", expanded=False):
+#                 # Create columns for content and timestamp
+#                 col1, col2 = st.columns([5, 1])
+#                 with col1:
+#                     st.write(message['content'])
+#                 with col2:
+#                     st.caption(f"🕒 {message['timestamp'].strftime('%I:%M %p')}")
+#         else:
+#             # Short prompt: show timestamp and content side by side
+#             col1, col2 = st.columns([5, 1])
+#             with col1:
+#                 st.write(message['content'])
+#             with col2:
+#                 st.caption(f"🕒 {message['timestamp'].strftime('%I:%M %p')}")
+
+# def render_assistant_message(message, idx):
+#     """Render an assistant message"""
+#     with st.chat_message("assistant", avatar="🦉"):
+#         # Display the response content
+#         st.markdown(message['content'])
+        
+#         # Display timestamp
+#         st.caption(f"🕒 {message['timestamp'].strftime('%I:%M %p')}")
+
+# def handle_user_input():
+#     """Handle user input and generate responses"""
+#     # Chat input at the bottom
+#     prompt = st.chat_input(
+#         placeholder="Ask ResearchAI about research opportunities or campus resources...",
+#         key="chat_input"
+#     )
+    
+#     # Process user input
+#     if prompt:
+#         # Add user message
+#         add_user_message(prompt)
+        
+#         # Show loading spinner while generating response
+#         with st.spinner("🤔 ResearchAI is thinking..."):
+#             # Generate response
+#             response = generate_chatbot_response(prompt)
+        
+#         # Add assistant response to history
+#         add_assistant_message(response)
+        
+#         # Log the conversation
+#         log_conversation(prompt, response)
+        
+#         # Rerun to display the new messages
+#         st.rerun()
+
+# if __name__ == "__main__":
+#     main()
+
+# #-----END OF FILE-----
+
+# # ORLANDO
+# # Streamlit Documentation: https://docs.streamlit.io/get-started 
+# # Run the app with streamlit run home.py
+
+# import streamlit as st
+# import time
+# import random
+# from utils.chatbot_utils import (initialize_chat_session,get_sidebar_info,clear_conversation,
+# add_user_message,add_assistant_message,generate_chatbot_response,log_conversation)
+
+# # --- USER BADGE + LOG OUT and Auth gate ---
+# if "user" not in st.session_state or st.session_state.user is None:
+#     st.switch_page("home.py")
+#     st.stop()
+
+# # NEW — grab user info for this page
+# user = st.session_state.user              
+# email = user["email"]                     
+# uid   = user["uid"]                       
+# role  = user.get("role", "student")       
+
+# with st.sidebar:
+#     st.success(f"Logged in as {email}")
+#     if st.button("Log Out", use_container_width=True):
+#         st.session_state.user = None
+#         st.session_state.page = "landing"
+#         st.rerun()
+#     st.divider()
+
+# def main():
+#     """Main function to render the chatbot page"""
+#     # Configure page
+#     configure_page()
+    
+#     # Initialize chat session
+#     initialize_chat_session()
+    
+#     # Render page components
+#     render_sidebar()
+#     render_header()
+#     render_chat_interface()
+#     handle_user_input()
+
+# def configure_page():
+#     """Configure page settings and metadata"""
+#     st.set_page_config(
+#         page_title="ResearchAI Chatbot - ResearchConnect SCSU",
+#         page_icon="🧠",
+#         layout="wide"
+#     )
+
+# def render_sidebar():
+#     """Render sidebar with chatbot info and statistics"""
+#     st.logo("images/scsu_logo.jpg", size="large")
+    
+#     with st.sidebar:
+#         # Clear conversation button
+#         if st.button("🔄 Clear Conversation", type="secondary", use_container_width=True):
+#             clear_conversation()
+#             st.rerun()
+
+# def render_header():
+#     """Render main page header"""
+#     st.title("ResearchAI Chatbot 🧠")
+#     st.subheader("Your intelligent assistant for research opportunities and campus resources at SCSU")
+#     st.divider()
+
+# def render_chat_interface():
+#     """Render the main chat interface with vertical layout using native Streamlit."""
+    
+#     # Display all messages in chronological order (vertical layout)
+#     for idx, message in enumerate(st.session_state.messages):
+#         if message["role"] == "user":
+#             render_user_message(message)
+#         elif message["role"] == "assistant":
+#             render_assistant_message(message, idx)
+
+# def render_user_message(message):
+#     """Render a user message in vertical layout"""
+#     with st.chat_message("user"):
+#         # Check if prompt is long and has a summary
+#         if "summary" in message and len(message['content']) > 200:
+#             # Long prompt: show timestamp above expander, then summary with content
+#             col1, col2 = st.columns([5, 1])
+#             with col2:
+#                 st.caption(f"🕒 {message['timestamp'].strftime('%I:%M %p')}")
+#             with st.expander(f"**{message['summary']}**", expanded=False):
+#                 st.write(message['content'])
+#         else:
+#             # Short prompt: show timestamp and content side by side
+#             col1, col2 = st.columns([5, 1])
+#             with col1:
+#                 st.write(message['content'])
+#             with col2:
+#                 st.caption(f"🕒 {message['timestamp'].strftime('%I:%M %p')}")
+
+# def render_assistant_message(message, idx):
+#     """Render an assistant message"""
+#     with st.chat_message("assistant", avatar="🦉"):
+#         # Display the response content
+#         st.markdown(message['content'])
+        
+#         # Display timestamp
+#         st.caption(f"🕒 {message['timestamp'].strftime('%I:%M %p')}")
+
+# def handle_user_input():
+#     """Handle user input and generate responses"""
+#     # Chat input at the bottom
+#     prompt = st.chat_input(
+#         placeholder="Ask ResearchAI about research opportunities or campus resources...",
+#         key="chat_input"
+#     )
+    
+#     # Process user input
+#     if prompt:
+#         # Add user message
+#         add_user_message(prompt)
+        
+#         # Show loading spinner while generating response
+#         with st.spinner("🤔 ResearchAI is thinking..."):
+#             # Generate response
+#             response = generate_chatbot_response(prompt)
+        
+#         # Add assistant response to history
+#         add_assistant_message(response)
+        
+#         # Log the conversation
+#         log_conversation(prompt, response)
+        
+#         # Rerun to display the new messages
+#         st.rerun()
+
+# if __name__ == "__main__":
+#     main()
+
+# #-----END OF FILE-----
+
 # ORLANDO
 # Streamlit Documentation: https://docs.streamlit.io/get-started 
 # Run the app with streamlit run home.py
@@ -66,67 +342,37 @@ def render_header():
     st.divider()
 
 def render_chat_interface():
-    """Render the main chat interface with side-by-side layout using native Streamlit."""
-    
-    # Initialize expander state tracking if not exists
-    if "expander_states" not in st.session_state:
-        st.session_state.expander_states = {}
-    
-    # Group messages into pairs (user prompt + assistant response)
-    message_pairs = []
-    temp_user = None
-    
-    for message in st.session_state.messages:
-        if message["role"] == "user":
-            temp_user = message
-        elif message["role"] == "assistant" and temp_user:
-            message_pairs.append((temp_user, message))
-            temp_user = None
-    
-    # Display each pair side by side
-    for idx, (user_msg, assistant_msg) in enumerate(message_pairs):
-        col_left, col_right = st.columns([1, 1], gap="large")
-        
-        # Create unique key based on message content and timestamp for persistence
-        expander_key = f"expander_{user_msg['timestamp'].strftime('%Y%m%d%H%M%S%f')}"
-        
-        # Initialize expander state if not exists (default to True for new messages)
-        if expander_key not in st.session_state.expander_states:
-            st.session_state.expander_states[expander_key] = True
-        
-        with col_left:
-            with st.chat_message("user"):
-                # Create columns within the chat message for prompt and timestamp
-                msg_col1, msg_col2 = st.columns([4, 1])
-                with msg_col1:
-                    st.write(user_msg['content'])
-                with msg_col2:
-                    st.caption(f"🕒 {user_msg['timestamp'].strftime('%I:%M %p')}")
-        
-        with col_right:
-            # Use stored state for expanded parameter
-            with st.expander(
-                "**ResearchAI Response** 🦉", 
-                expanded=st.session_state.expander_states[expander_key]
-            ):
-                # Container with fixed height and scrolling
-                st.markdown(
-                    """
-                    <style>
-                    .scrollable-response {
-                        max-height: 400px;
-                        overflow-y: auto;
-                        padding-right: 10px;
-                    }
-                    </style>
-                    """,
-                    unsafe_allow_html=True
-                )
-                st.markdown(
-                    f'<div class="scrollable-response">{assistant_msg["content"]}</div>',
-                    unsafe_allow_html=True
-                )
-                st.caption(f"🕒 {assistant_msg['timestamp'].strftime('%I:%M %p')}")
+    """Render the main chat interface with vertical layout using native Streamlit."""
+    for idx, message in enumerate(st.session_state.messages):
+        with st.container():
+            if message["role"] == "user":
+                render_user_message(message)
+            elif message["role"] == "assistant":
+                render_assistant_message(message, idx)
+
+def render_user_message(message):
+    """Render a user message in vertical layout with timestamp at bottom-left."""
+    with st.chat_message("user"):
+        content_container = st.container()
+        with content_container:
+            if "summary" in message and len(message['content']) > 150:
+                with st.expander(f"**{message['summary']}**", expanded=False):
+                    st.write(message['content'])
+            else:
+                st.write(message['content'])
+
+        # Always show timestamp in the same bottom-left area
+        st.caption(f"🕒 {message['timestamp'].strftime('%I:%M %p')}")
+
+
+def render_assistant_message(message, idx):
+    """Render an assistant message with timestamp bottom-left aligned."""
+    with st.chat_message("assistant", avatar="🦉"):
+        content_container = st.container()
+        with content_container:
+            st.markdown(message['content'])
+        st.caption(f"🕒 {message['timestamp'].strftime('%I:%M %p')}")
+
 
 def handle_user_input():
     """Handle user input and generate responses"""
@@ -143,7 +389,7 @@ def handle_user_input():
         
         # Show loading spinner while generating response
         with st.spinner("🤔 ResearchAI is thinking..."):
-            # Generate response (removed artificial delay)
+            # Generate response
             response = generate_chatbot_response(prompt)
         
         # Add assistant response to history
@@ -158,4 +404,4 @@ def handle_user_input():
 if __name__ == "__main__":
     main()
 
-# #-----END OF FILE-----
+#-----END OF FILE-----
