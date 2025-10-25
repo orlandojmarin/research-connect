@@ -1,4 +1,5 @@
-# ORLANDO (UI) + SANA (Authentication Functionality)
+# ORLANDO (UI) 
+# SANA (Authentication Functionality)
 # Streamlit Documentation: https://docs.streamlit.io/get-started 
 # run the program with streamlit run home.py
 
@@ -176,10 +177,7 @@ def auth_gate():
         render_theme_tip()
 
         if st.button("Log Out", use_container_width=True):
-            # Clear user session
-            st.session_state.user = None
-            st.session_state.page = "landing"
-            # Force a full rerun to reconfigure page layout
+            logout()
             st.rerun()
 
 # ----- LANDING / LOGIN / SIGNUP -----
@@ -300,7 +298,7 @@ def render_signup():
         else:
             try:
                 create_account(email, password, first, last)
-                st.success("✅ Account created successfully! Please log in.")
+                st.success("✅ Account created successfully! You can now log in.")
                 go("login")
                 st.rerun()
             except Exception as e:

@@ -3,61 +3,48 @@
 # Run the app with streamlit run home.py
 
 import streamlit as st
-import time
-import random
-from utils.chatbot_utils import (initialize_chat_session,get_sidebar_info,clear_conversation,
-add_user_message,add_assistant_message,generate_chatbot_response,log_conversation)
+from utils.chatbot_utils import (
+    initialize_chat_session, get_sidebar_info, clear_conversation,
+    add_user_message, add_assistant_message, generate_chatbot_response, log_conversation
+)
+from utils.general_utils import (
+    auth_gate, get_current_user, configure_page, 
+    render_scsu_logo, render_sidebar_auth
+)
 
-# --- USER BADGE + LOG OUT and Auth gate ---
-if "user" not in st.session_state or st.session_state.user is None:
-    st.switch_page("home.py")
-    st.stop()
+# Configure page FIRST
+configure_page(
+    title="ResearchAI Chatbot - ResearchConnect SCSU",
+    icon="🧠",
+    layout="wide"
+)
 
-# NEW — grab user info for this page
-user = st.session_state.user              
-email = user["email"]                     
-uid   = user["uid"]                       
-role  = user.get("role", "student")       
+# Auth gate
+auth_gate()
 
+# Get user info
+user_info = get_current_user()
+
+# Sidebar
+render_scsu_logo()
 with st.sidebar:
-    st.success(f"Logged in as {email}")
-    if st.button("Log Out", use_container_width=True):
-        st.session_state.user = None
-        st.session_state.page = "landing"
-        st.rerun()
+    render_sidebar_auth()
     st.divider()
+    
+    # Clear conversation button
+    if st.button("🔄 Clear Conversation", type="secondary", use_container_width=True):
+        clear_conversation()
+        st.rerun()
 
 def main():
     """Main function to render the chatbot page"""
-    # Configure page
-    configure_page()
-    
     # Initialize chat session
     initialize_chat_session()
     
     # Render page components
-    render_sidebar()
     render_header()
     render_chat_interface()
     handle_user_input()
-
-def configure_page():
-    """Configure page settings and metadata"""
-    st.set_page_config(
-        page_title="ResearchAI Chatbot - ResearchConnect SCSU",
-        page_icon="🧠",
-        layout="wide"
-    )
-
-def render_sidebar():
-    """Render sidebar with chatbot info and statistics"""
-    st.logo("images/scsu_logo.jpg", size="large")
-    
-    with st.sidebar:
-        # Clear conversation button
-        if st.button("🔄 Clear Conversation", type="secondary", use_container_width=True):
-            clear_conversation()
-            st.rerun()
 
 def render_header():
     """Render main page header"""
@@ -88,7 +75,6 @@ def render_user_message(message):
         # Always show timestamp in the same bottom-left area
         st.caption(f"🕒 {message['timestamp'].strftime('%I:%M %p')}")
 
-
 def render_assistant_message(message, idx):
     """Render an assistant message with timestamp bottom-left aligned."""
     with st.chat_message("assistant", avatar="🦉"):
@@ -96,7 +82,6 @@ def render_assistant_message(message, idx):
         with content_container:
             st.markdown(message['content'])
         st.caption(f"🕒 {message['timestamp'].strftime('%I:%M %p')}")
-
 
 def handle_user_input():
     """Handle user input and generate responses"""
