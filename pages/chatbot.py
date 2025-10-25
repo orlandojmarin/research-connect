@@ -28,7 +28,7 @@ user_info = get_current_user()
 # Sidebar
 render_scsu_logo()
 with st.sidebar:
-    render_sidebar_auth()
+    render_sidebar_auth(show_role=True)
     st.divider()
     
     # Clear conversation button
