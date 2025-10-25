@@ -2,7 +2,15 @@
 # listings.py
 
 import streamlit as st
-from utils.listings_utils import get_listings_data, filter_listings
+from datetime import datetime
+from utils.listings_utils import (
+    get_listings_data, 
+    filter_listings,
+    save_listing_to_firebase,
+    get_all_listings_from_firebase,
+    get_user_listings_from_firebase
+)
+from utils.profile_utils import get_user_profile
 from utils.general_utils import (
     auth_gate, get_current_user, configure_page,
     render_scsu_logo, render_sidebar_auth
@@ -288,10 +296,12 @@ def main():
         with tab3:
             st.header("My Listings")
             
-            # Filter listings created by this user
-            if "user_listings" in st.session_state:
-                my_listings = [listing for listing in st.session_state.user_listings 
-                              if listing.get("posted_by_uid") == user_info['uid']]
+            # Get listings created by this user from Firebase
+            my_listings = get_user_listings_from_firebase(user_info['uid'])
+            
+            if my_listings:
+                # Create centered column layout
+                col1, col2, col3 = st.columns([1, 3, 1])
                 
                 with col2:
                     for listing in my_listings[::-1]:  # Most recent first
