@@ -15,9 +15,10 @@ from vertexai.generative_models import GenerativeModel
 # Load environment variables
 load_dotenv()
 
+@st.cache_resource
 def initialize_vertex_ai():
     """
-    Initialize Vertex AI connection
+    Initialize Vertex AI connection with caching to avoid repeated initializations
     
     Returns:
         GenerativeModel or None: Initialized model or None if fails
@@ -36,20 +37,12 @@ def initialize_vertex_ai():
         print(f"Failed to initialize Vertex AI: {e}")
         return None
 
-
 def initialize_chat_session():
     """
-    Initialize chat session state and welcome message
+    Initialize chat session state without an initial welcome message.
     """
     if "messages" not in st.session_state:
         st.session_state.messages = []
-        # Add welcome message
-        welcome_message = {
-            "role": "assistant",
-            "content": "Hello! I'm ResearchAI, your friendly assistant for all things research at SCSU. How can I help you today?",
-            "timestamp": datetime.datetime.now()
-        }
-        st.session_state.messages.append(welcome_message)
 
 def get_sidebar_info():
     """
@@ -80,9 +73,50 @@ def clear_conversation():
     st.session_state.messages = []
     initialize_chat_session()
 
+def generate_prompt_summary(prompt_text):
+    """
+    Generate a concise 5-7 word summary of a user prompt using Vertex AI.
+    
+    Args:
+        prompt_text (str): The full user prompt
+        
+    Returns:
+        str: A 5-7 word summary
+    """
+    model = initialize_vertex_ai()
+    
+    if not model:
+        # Fallback: return first 7 words if AI fails
+        words = prompt_text.split()[:7]
+        return " ".join(words) + "..."
+    
+    try:
+        summary_prompt = f"""Generate a concise 5-7 word summary of the user's request. 
+Only return the summary, nothing else.
+
+Text: {prompt_text}
+
+Summary:"""
+        
+        response = model.generate_content(summary_prompt)
+        summary = response.text.strip()
+        
+        # Ensure it's not too long (fallback)
+        if len(summary.split()) > 10:
+            words = prompt_text.split()[:7]
+            return " ".join(words) + "..."
+        
+        return summary
+        
+    except Exception as e:
+        print(f"Summary generation failed: {e}")
+        # Fallback: return first 7 words
+        words = prompt_text.split()[:7]
+        return " ".join(words) + "..."
+
 def add_user_message(content):
     """
-    Add user message to chat history
+    Add user message to chat history with optional summary for long prompts
     
     Args:
         content (str): User message content
@@ -92,6 +126,11 @@ def add_user_message(content):
         "content": content,
         "timestamp": datetime.datetime.now()
     }
+    
+    # Generate summary if prompt is long (>200 characters)
+    if len(content) > 200:
+        message["summary"] = generate_prompt_summary(content)
+    
     st.session_state.messages.append(message)
 
 def add_assistant_message(content):
@@ -118,6 +157,7 @@ def generate_chatbot_response(user_input):
     Returns:
         str: Generated response
     """
+    # Get cached model instance
     model = initialize_vertex_ai()
     
     if not model:
@@ -176,3 +216,5 @@ def log_conversation(user_input, bot_response):
         st.session_state.conversation_log = []
     
     st.session_state.conversation_log.append(log_entry)
+
+#-----END OF FILE-----

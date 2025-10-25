@@ -1,3 +1,5 @@
+# ORLANDO (UI) 
+# SANA (Authentication Functionality)
 # Streamlit Documentation: https://docs.streamlit.io/get-started 
 # run the program with streamlit run home.py
 
@@ -14,10 +16,29 @@ from utils.home_utils import (
 )
 from utils.profile_utils import get_user_profile
 
+# ----- DYNAMIC PAGE CONFIG -----
+def configure_page():
+    """Set the Streamlit page configuration with dynamic layout based on auth state."""
+    # Check if user is logged in
+    if "user" not in st.session_state:
+        st.session_state.user = None
+    
+    # Set layout based on authentication state
+    layout = "wide" if st.session_state.user is not None else "centered"
+    
+    st.set_page_config(
+        page_title="ResearchConnect SCSU",
+        page_icon="🦉",
+        layout=layout,
+        initial_sidebar_state="expanded"
+    )
+
+# Must be called FIRST before any other Streamlit commands
+configure_page()
+
 # --------- HOME PAGE ----------
 def main():
     """Render the main home page with header, quick actions, features, and footer."""
-    configure_page()
     initialize_session_state()
     st.logo("images/scsu_logo.jpg", size="large")
 
@@ -27,14 +48,10 @@ def main():
     render_features()
     render_footer()
 
-def configure_page():
-    """Set the Streamlit page configuration (title, icon, layout, sidebar)."""
-    st.set_page_config(
-        page_title="ResearchConnect SCSU",
-        page_icon="🦉",
-        layout="wide",
-        initial_sidebar_state="expanded"
-    )
+def render_theme_tip():
+    """Render a tip message encouraging users to use the custom theme"""
+    st.info("💡 **Tip:** For the best experience, use the Custom Theme!\n\n"
+            'Menu -> Settings -> "Custom Theme"')
 
 def render_header():
     """Render the header section with title, logo, and personalized greeting."""
@@ -155,9 +172,12 @@ def auth_gate():
     # If logged in, show sidebar with logout
     with st.sidebar:
         st.success(f"Logged in as {st.session_state.user['email']}")
-        if st.button("Log Out"):
-            st.session_state.user = None
-            st.session_state.page = "landing"
+
+        # Theme tip
+        render_theme_tip()
+
+        if st.button("Log Out", use_container_width=True):
+            logout()
             st.rerun()
 
 # ----- LANDING / LOGIN / SIGNUP -----
@@ -183,7 +203,7 @@ def render_landing():
     # --- Title & subtitle remain full width and centered ---
     st.markdown("<h1 style='text-align: center;'>ResearchConnect SCSU</h1>", unsafe_allow_html=True)
     st.markdown(
-        "<p style='text-align: center; font-size: 18px; color: #EDEDED;'>Connecting Students with Research Opportunities</p>",
+        "<p style='text-align: center; font-size: 18px;'>Connecting Students with Research Opportunities</p>",
         unsafe_allow_html=True
     )
     st.write("")
@@ -221,34 +241,76 @@ def render_signup():
         go("landing")
         st.rerun()
     
+    # Helpful information box
+    st.info("📝 **Account Requirements:**\n"
+            "- Use your SCSU email address (@southernct.edu)\n"
+            "- Password must be at least 8 characters\n"
+            "- Password must include both letters and numbers")
+    
     # Form
     with st.form("signup_form"):
         col1, col2 = st.columns(2)
         first = col1.text_input("First name")
         last = col2.text_input("Last name")
-        email_raw = col1.text_input("SCSU email address")
-        password = col2.text_input("Password", type="password")
+        email_raw = col1.text_input("SCSU email address", placeholder="yourname@southernct.edu")
+        password = col2.text_input("Password", type="password", 
+                                   help="Must be at least 8 characters with letters and numbers")
         confirm = st.text_input("Confirm password", type="password")
         submitted = st.form_submit_button("Create Account")
 
     if submitted:
+        # Collect all validation errors
+        errors = []
+        
         email = sanitize_email(email_raw)
-        if not is_allowed_sc_su_email(email):
-            st.error("Please use your SCSU email.")
-            return
-        ok, msg = strong_password(password)
-        if not ok:
-            st.error(msg)
-            return
-        if password != confirm:
-            st.error("Passwords do not match.")
-            return
-        try:
-            create_account(email, password, first, last)
-            st.success("Account created successfully. Please log in.")
+        
+        # Validate email domain
+        if not email:
+            errors.append("❌ Please enter an email address.")
+        elif not is_allowed_sc_su_email(email):
+            errors.append("❌ Please use your SCSU email address (@southernct.edu).")
+        
+        # Validate password strength
+        if not password:
+            errors.append("❌ Please enter a password.")
+        else:
+            ok, msg = strong_password(password)
+            if not ok:
+                errors.append(f"❌ {msg}")
+        
+        # Validate password confirmation
+        if password and confirm and password != confirm:
+            errors.append("❌ Passwords do not match.")
+        elif not confirm:
+            errors.append("❌ Please confirm your password.")
+        
+        # Validate names
+        if not first or not first.strip():
+            errors.append("❌ Please enter your first name.")
+        if not last or not last.strip():
+            errors.append("❌ Please enter your last name.")
+        
+        # Display all errors or proceed with account creation
+        if errors:
+            st.error("**Please fix the following issues:**")
+            for error in errors:
+                st.error(error)
+        else:
+            try:
+                create_account(email, password, first, last)
+                st.session_state.account_created = True  # ✅ flag for next render
+                st.rerun()  # triggers rerun so flag takes effect
+            except Exception as e:
+                st.error(friendly_firebase_error(e))
+
+    # --- This part runs after rerun ---
+    if st.session_state.get("account_created"):
+        st.success("✅ Account created successfully! You can now log in below when you're ready.")
+        st.balloons()
+        if st.button("🔑 Go to Login", use_container_width=True):
+            st.session_state.account_created = False
             go("login")
-        except Exception as e:
-            st.error(friendly_firebase_error(e))
+            st.rerun()
 
 def render_login():
     """Render the login page with form inputs and authentication handling.
@@ -261,27 +323,42 @@ def render_login():
         st.rerun()
 
     with st.form("login_form"):
-        email_raw = st.text_input("SCSU email address")
+        email_raw = st.text_input("SCSU email address", placeholder="yourname@southernct.edu")
         password = st.text_input("Password", type="password")
-        submitted = st.form_submit_button("Log in")
+        submitted = st.form_submit_button("Log In")
 
     if submitted:
+        # Collect validation errors
+        errors = []
+        
         email = sanitize_email(email_raw)
-        if not is_allowed_sc_su_email(email):
-            st.error("Please use your SCSU email.")
-            return
-
-        try:
-            uid, token = sign_in(email, password)
-            st.session_state.user = {"uid": uid, "email": email, "idToken": token}
-            profile = db.child("users").child(uid).get().val() or {}
-            st.session_state.user["role"] = profile.get("role", "student")
-            go("home")
-            st.rerun()
-        except Exception as e:
-            st.error(friendly_firebase_error(e))
+        
+        if not email:
+            errors.append("❌ Please enter your email address.")
+        elif not is_allowed_sc_su_email(email):
+            errors.append("❌ Please use your SCSU email address (@southernct.edu).")
+        
+        if not password:
+            errors.append("❌ Please enter your password.")
+        
+        # Display validation errors or attempt login
+        if errors:
+            for error in errors:
+                st.error(error)
+        else:
+            try:
+                uid, token = sign_in(email, password)
+                st.session_state.user = {"uid": uid, "email": email, "idToken": token}
+                profile = db.child("users").child(uid).get().val() or {}
+                st.session_state.user["role"] = profile.get("role", "student")
+                go("home")
+                st.rerun()
+            except Exception as e:
+                st.error(friendly_firebase_error(e))
 
 # ----- RUN APP -----
 if __name__ == "__main__":
     auth_gate()
     main()
+
+#-----END OF FILE-----

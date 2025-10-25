@@ -29,3 +29,5 @@ def delete_user_data(uid: str):
         db.child("users").child(uid).remove()
     except Exception as e:
         raise RuntimeError(f"Failed to remove user data: {e}")
+    
+#----END OF FILE-----

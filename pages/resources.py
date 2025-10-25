@@ -11,42 +11,33 @@ from utils.resources_utils import (
     track_resource_interaction,
     initialize_resources_session
 )
-# Sana--- AUTH GATE ---
-if "user" not in st.session_state or st.session_state.user is None:
-    st.switch_page("home.py")
-    st.stop()
+from utils.general_utils import (
+    auth_gate, get_current_user, configure_page,
+    render_scsu_logo, render_sidebar_auth
+)
 
-# NEW — grab user info for this page
-user = st.session_state.user              # 
-email = user["email"]                     # 
-uid   = user["uid"]                       # 
-role  = user.get("role", "student")       # 
+# Configure page FIRST
+configure_page(
+    title="Campus Resources - ResearchConnect SCSU",
+    icon="📚",
+    layout="wide"
+)
 
-def configure_page():
-    """Configure page settings and metadata"""
-    st.set_page_config(
-        page_title="Campus Resources - ResearchConnect SCSU",
-        page_icon="📚",
-        layout="wide"
-    )
+# Auth gate
+auth_gate()
 
-# Sana--- USER BADGE + LOG OUT ---
+# Get user info
+user_info = get_current_user()
+
+# Sidebar
+render_scsu_logo()
 with st.sidebar:
-    st.success(f"Logged in as {email}")               # changed to use email var
-    st.caption(f"Role: {role}")
-    if st.button("Log Out"):
-        st.session_state.user = None
-        st.session_state.page = "landing"
-        st.rerun()
+    render_sidebar_auth(show_role=True)
 
-
-        
 def render_header():
     """Render main page header"""
     st.title("Campus Resources 📚")
     st.subheader("Your guide to SCSU's key support centers and professional development resources")
-    
-    # st.info("**Explore the resource centers below** - click on each section to learn more about services, programs, and contact information.")
     st.divider()
 
 def render_innovation_hub():
@@ -140,11 +131,8 @@ def render_stem_centers():
 
 def main():
     """Main function to render the resources page"""
-    # Configure page and initialize session
-    configure_page()
+    # Initialize session
     initialize_resources_session()
-
-    st.logo("images/scsu_logo.jpg", size="large")
     
     # Render page components
     render_header()
@@ -155,3 +143,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+#-----END OF FILE-----
