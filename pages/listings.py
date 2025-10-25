@@ -1,14 +1,12 @@
 # TATIANA
 # listings.py
 
-# add captions/examples for each field
-# make fields required
-# add a field for application instructions
-# add a field for professor's website
-# change submit button to say "Post Listing"
-
 import streamlit as st
 from utils.listings_utils import get_listings_data, filter_listings
+from utils.general_utils import (
+    auth_gate, get_current_user, configure_page,
+    render_scsu_logo, render_sidebar_auth
+)
 
 FACULTY_NAMES = [
     "Amal Abd El-Raouf",
@@ -36,39 +34,23 @@ SKILLS_OPTIONS = [
     "Research Methods / Experimental Design"
 ]
 
-# Check if user is logged in
-if "user" not in st.session_state or st.session_state.user is None:
-    st.switch_page("home.py")
-    st.stop()
+# Configure page FIRST
+configure_page(
+    title="Research Opportunities 🔍",
+    icon="🔍",
+    layout="wide"
+)
 
-# Grab user info for this page
-user = st.session_state.user
-email = user.get("email", "")
-uid = user.get("uid", "")
-role = user.get("role", "student")
+# Auth gate
+auth_gate()
 
-### TEMPORARY: Hard-code role for development ###
-if email in ("engt1@southernct.edu", "marino1@southernct.edu", "muneerb1@southernct.edu"):
-    role = "ADMIN"
+# Get user info
+user_info = get_current_user()
 
-def configure_page():
-    st.set_page_config(
-        page_title="Research Opportunities 🔍",
-        page_icon="🔍",
-        layout="wide"
-    )
-
-
-configure_page()
-
+# Sidebar
+render_scsu_logo()
 with st.sidebar:
-    st.success(f"Logged in as {email}")
-    st.caption(f"Role: {role}")
-    if st.button("Log Out", use_container_width=True):
-        st.session_state.user = None
-        st.session_state.page = "landing"
-        st.rerun()
-
+    render_sidebar_auth(show_role=True)
 
 def render_sidebar_filters():
     st.sidebar.title("Filters")
@@ -79,7 +61,6 @@ def render_sidebar_filters():
     with st.sidebar.expander("Faculty", expanded=False):
         faculty_filter = st.radio("", options=["All"] + FACULTY_NAMES, index=0, key="faculty_filter")
     return hours_filter, compensation_filter, faculty_filter
-
 
 def render_listings(listings):
     # Create centered column layout
@@ -102,12 +83,10 @@ def render_listings(listings):
                 st.write(f"**Date Posted:** {listing['date_posted']}")
                 st.write("")  # Add spacing between listings
 
-
 def main():
     st.title("Research Opportunities 🔍")
-    st.logo("images/scsu_logo.jpg", size="large")
 
-    if role in ("FACULTY", "ADMIN"):
+    if user_info['role'] in ("faculty", "admin"):
         tab1, tab2, tab3 = st.tabs(["Browse Listings", "Create Listing", "My Listings"])
     else:
         tab1, = st.tabs(["Browse Listings"])
@@ -129,7 +108,7 @@ def main():
             st.info("No listings match your filters.")
 
     # Create Listing
-    if role in ("FACULTY", "ADMIN"):
+    if user_info['role'] in ("faculty", "admin"):
         with tab2:
             st.header("Create a New Research Listing")
             st.info("Fill out the form below and submit.")
@@ -218,7 +197,7 @@ def main():
                             date_posted_formatted = datetime.now().strftime("%B %d, %Y")
                             
                             # Get user's name from profile
-                            profile_data = get_user_profile(uid)
+                            profile_data = get_user_profile(user_info['uid'])
                             posted_by = profile_data.get('name', 'Unknown') if profile_data else 'Unknown'
                             
                             # Format other data
@@ -243,7 +222,7 @@ def main():
                                 "compensation_type": compensation_type.lower(),
                                 "website_urls": website_urls if website_urls else "n/a",
                                 "communication": communication_str,
-                                "posted_by_uid": uid
+                                "posted_by_uid": user_info['uid']
                             }
                             
                             # Initialize listings in session state if not exists
@@ -275,7 +254,8 @@ def main():
             
             # Filter listings created by this user
             if "user_listings" in st.session_state:
-                my_listings = [listing for listing in st.session_state.user_listings if listing.get("posted_by_uid") == uid]
+                my_listings = [listing for listing in st.session_state.user_listings 
+                              if listing.get("posted_by_uid") == user_info['uid']]
                 
                 if my_listings:
                     # Create centered column layout
@@ -302,6 +282,7 @@ def main():
             else:
                 st.info("You haven't created any listings yet.")
 
-
 if __name__ == "__main__":
     main()
+
+#-----END OF FILE-----

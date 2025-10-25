@@ -1,29 +1,45 @@
-# SANA
+# SANA 
+# Updated by Orlando to hide firebase credentials
 import pyrebase
 from requests.exceptions import HTTPError
 import requests
 import json, unicodedata, re
 import streamlit as st
 import datetime
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# ============================ VALIDATE ENVIRONMENT VARIABLES ============================
+required_env_vars = [
+    "FIREBASE_API_KEY", "FIREBASE_AUTH_DOMAIN", "FIREBASE_PROJECT_ID",
+    "FIREBASE_STORAGE_BUCKET", "FIREBASE_MESSAGING_SENDER_ID",
+    "FIREBASE_APP_ID", "FIREBASE_MEASUREMENT_ID", "FIREBASE_DATABASE_URL"
+]
+
+missing_vars = [var for var in required_env_vars if not os.getenv(var)]
+if missing_vars:
+    raise EnvironmentError(
+        f"⚠️  Missing required Firebase environment variables: {', '.join(missing_vars)}\n"
+        f"Please create a .env file and add these variables.\n"
+        f"See .env.example for the required format."
+    )
 
 # ============================ SETTINGS ============================
 ALLOWED_DOMAINS = {"southernct.edu"}
 
-# When email already exists AND the provided password matches,
-# we quietly delete the existing account and recreate it so
-# "Create Account" always works in demos/tests.
-ALLOW_RECREATE_SAME_EMAIL = True
-
 # ============================ FIREBASE ============================
 firebaseConfig = {
-    "apiKey": "AIzaSyAZVSbKHQpLLnEH7rlPa3CoxAdQiV3aAYk",
-    "authDomain": "researchconnect-scsu.firebaseapp.com",
-    "projectId": "researchconnect-scsu",
-    "storageBucket": "researchconnect-scsu.appspot.com",
-    "messagingSenderId": "957316833349",
-    "appId": "1:957316833349:web:197e9b2fcafd75e8ca432c",
-    "measurementId": "G-YR8GM246SG",
-    "databaseURL": "https://researchconnect-scsu-default-rtdb.firebaseio.com/",
+    "apiKey": os.getenv("FIREBASE_API_KEY"),
+    "authDomain": os.getenv("FIREBASE_AUTH_DOMAIN"),
+    "projectId": os.getenv("FIREBASE_PROJECT_ID"),
+    "storageBucket": os.getenv("FIREBASE_STORAGE_BUCKET"),
+    "messagingSenderId": os.getenv("FIREBASE_MESSAGING_SENDER_ID"),
+    "appId": os.getenv("FIREBASE_APP_ID"),
+    "measurementId": os.getenv("FIREBASE_MEASUREMENT_ID"),
+    "databaseURL": os.getenv("FIREBASE_DATABASE_URL"),
 }
 firebase = pyrebase.initialize_app(firebaseConfig)
 auth = firebase.auth()
@@ -120,6 +136,47 @@ def friendly_firebase_error(err: Exception) -> str:
     
     return default_msg
 
+# ============================ AUTH OPERATIONS ============================
+
+def create_account(email: str, password: str, first_name: str, last_name: str):
+    """Create a new Firebase user and store their profile in the database. Returns uid."""
+    user = auth.create_user_with_email_and_password(email, password)
+    uid = user["localId"]
+
+    # Determine role based on email
+    admin_emails = (
+        "marino1@southernct.edu",
+        "engt1@southernct.edu",
+        "muneerb1@southernct.edu"
+    )
+    role = "admin" if email.lower() in admin_emails else "student"
+
+    # Save basic profile in DB
+    db.child("users").child(uid).set({
+        "email": email,
+        "name": f"{first_name} {last_name}".strip(),
+        "role": role,
+        "created_at": datetime.datetime.utcnow().isoformat() + "Z",
+    })
+
+    return uid
+
+def sign_in(email: str, password: str):
+    """Sign in a Firebase user and return (uid, id_token)."""
+    user = auth.sign_in_with_email_and_password(email, password)
+    info = auth.get_account_info(user["idToken"])
+    uid = info["users"][0]["localId"]
+    return uid, user["idToken"]
+
+def go(page: str):
+    """Set the Streamlit session state page to navigate between app pages."""
+    st.session_state.page = page
+
+def logout():
+    """Log out the current user by clearing session state."""
+    st.session_state.user = None
+    st.session_state.page = "landing"
+
 def delete_self_account(id_token: str):
     """Delete the currently authenticated Firebase user using their ID token."""
     # Try pyrebase helper if present
@@ -133,62 +190,5 @@ def delete_self_account(id_token: str):
     url = f"https://identitytoolkit.googleapis.com/v1/accounts:delete?key={api_key}"
     r = requests.post(url, json={"idToken": id_token}, timeout=10)
     r.raise_for_status()
-
-# ============================ AUTH OPERATIONS ============================
-
-def create_account(email: str, password: str, first_name: str, last_name: str):
-    """Create a new Firebase user and store their profile in the database. Returns uid."""
-    try:
-        user = auth.create_user_with_email_and_password(email, password)
-        uid = user["localId"]
-    except HTTPError as ce:
-        # Handle duplicate account case gracefully
-        body = None
-        try:
-            body = ce.response.json()
-        except Exception:
-            pass
-        code = (body or {}).get("error", {}).get("message", "")
-        if "EMAIL_EXISTS" in code and ALLOW_RECREATE_SAME_EMAIL:
-            try:
-                signed = auth.sign_in_with_email_and_password(email, password)
-                uid = signed["localId"]
-            except Exception:
-                raise ce
-        else:
-            raise ce
-
-    # Save basic profile in DB
-    db.child("users").child(uid).set({
-        "email": email,
-        "name": f"{first_name} {last_name}".strip(),
-        "role": "student",
-        "created_at": datetime.datetime.utcnow().isoformat() + "Z",
-    })
-
-    return uid
-
-def sign_in(email: str, password: str):
-    """Sign in a Firebase user and return (uid, id_token)."""
-    try:
-        user = auth.sign_in_with_email_and_password(email, password)
-        info = auth.get_account_info(user["idToken"])
-        uid = info["users"][0]["localId"]
-        return uid, user["idToken"]
-    except HTTPError as e:
-        # Re-raise with the original error so friendly_firebase_error can parse it
-        raise e
-    except Exception as e:
-        # For non-HTTP errors, wrap them in a more informative message
-        raise Exception(f"Login failed: {str(e)}")
-
-def go(page: str):
-    """Set the Streamlit session state page to navigate between app pages."""
-    st.session_state.page = page
-
-def logout():
-    """Log out the current user by clearing session state."""
-    st.session_state.user = None
-    st.session_state.page = "landing"
 
 #-----END OF FILE-----
