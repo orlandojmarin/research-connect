@@ -4,11 +4,11 @@
 import streamlit as st
 from datetime import datetime
 from utils.listings_utils import (
-    get_listings_data, 
     filter_listings,
     save_listing_to_firebase,
     get_all_listings_from_firebase,
-    get_user_listings_from_firebase
+    get_user_listings_from_firebase,
+    delete_listing_from_firebase
 )
 from utils.profile_utils import get_user_profile
 from utils.general_utils import (
@@ -59,15 +59,10 @@ user_info = get_current_user()
 render_scsu_logo()
 with st.sidebar:
     render_sidebar_auth(show_role=True)
+    st.divider()
 
 def render_sidebar_filters():
-    """
-    Render sidebar filters for refining research opportunity listings and 
-    allow users to narrow down listings based on their availability and preferences.
-
-    Returns:
-        tuple: A tuple containing selected values for (hours_filter, compensation_filter, faculty_filter).
-    """
+    """Render sidebar filters for refining research opportunity listings."""
     st.sidebar.title("Filters")
     with st.sidebar.expander("Hours per Week", expanded=False):
         hours_filter = st.radio("", ["All", "0 to 5", "6 to 10", "10+"], index=0, key="hours_filter")
@@ -78,25 +73,13 @@ def render_sidebar_filters():
     return hours_filter, compensation_filter, faculty_filter
 
 def render_listings(listings):
-    """
-    Display a list of research opportunity listings in a structured and readable format.
-
-    Each listing includes detailed information such as project title, 
-    principal investigator, department, required skills, duration, compensation, 
-    and other key attributes.
-
-    Args:
-        listings (list[dict]): A list of research listings to display, 
-        each represented as a dictionary containing listing details.
-    """
-    # Create centered column layout
+    """Display a list of research opportunity listings in a structured and readable format."""
     col1, col2, col3 = st.columns([1, 3, 1])
-    
     with col2:
         for listing in listings:
             with st.container(border=True):
                 st.subheader(listing["title"])
-                st.write(f"**Principal Investigator:** {listing['pi']}")
+                st.write(f"Posted by {listing['pi']} on {listing['date_posted']}")
                 st.write(f"**Additional Collaborators:** {listing['team']}")
                 st.write(f"**Department/Lab:** {listing['department']}")
                 st.write(f"**Number of Openings:** {listing['openings']}")
@@ -105,21 +88,15 @@ def render_listings(listings):
                 st.write(f"**Number of Hours per Week:** {listing['weekly_hours']}")
                 st.write(f"**Hourly Pay Rate:** ${listing['pay_rate']}")
                 st.write(f"**Skills Required:** {listing['skills']}")
+                if "website_urls" in listing and listing["website_urls"] != "n/a":
+                    st.write(f"**Website URL(s):** {listing['website_urls']}")
                 st.write(f"**Summary/Description:** {listing['summary']}")
-                st.write(f"Posted by {listing['pi']} on {listing['date_posted']}")
-                st.write("")  # Add spacing between listings
+                if "communication" in listing and listing["communication"]:
+                    st.write(f"**Preferred Method of Communication:** {listing['communication']}")
+                st.write("")
 
 def main():
-    """
-    Serve as the main entry point for the Streamlit application.
-
-    Handles page layout, user role–based navigation (faculty/admin vs. student), 
-    and integrates all primary app functions, including browsing listings, 
-    creating new listings, and viewing user-specific listings.
-
-    This function coordinates user interaction, filtering logic, 
-    Firebase data retrieval, and form submission workflows.
-    """
+    """Main entry point for the Research Opportunities page."""
     st.title("Research Opportunities 🔍")
 
     if user_info['role'] in ("faculty", "admin"):
@@ -130,15 +107,7 @@ def main():
     # Browse Listings
     with tab1:
         hours_filter, compensation_filter, faculty_filter = render_sidebar_filters()
-        
-        # Combine mock data with Firebase listings
-        listings = get_listings_data()
-        firebase_listings = get_all_listings_from_firebase()
-        
-        # Add Firebase listings at the beginning (most recent first)
-        if firebase_listings:
-            listings = firebase_listings[::-1] + listings
-        
+        listings = get_all_listings_from_firebase()[::-1]  # Firebase only
         filtered_listings = filter_listings(listings, hours_filter, compensation_filter, faculty_filter)
         if filtered_listings:
             render_listings(filtered_listings)
@@ -150,27 +119,19 @@ def main():
         with tab2:
             st.header("Create a New Research Listing")
 
-            # Initialize form counter if not exists
             if "form_counter" not in st.session_state:
                 st.session_state.form_counter = 0
 
-            # Create centered column layout
             col1, col2, col3 = st.columns([1, 3, 1])
-            
             with col2:
-                # Display success messages at the top if they exist
                 if st.session_state.get("listing_created", False):
                     st.success(f"Listing '{st.session_state.listing_title}' successfully created!")
-                    # Clear the flag after displaying
                     st.session_state.listing_created = False
-                
-                # Use a container for a form-like layout
+
                 with st.container(border=True):
-                    # Add form counter to keys to force reset
                     form_key = st.session_state.form_counter
-                    
-                    title = st.text_input("Project Title *", value="", placeholder="ex. Biometric Authentication Research", key=f"title_input_{form_key}")
-                    team = st.text_input("Investigators/Team Members", value="", placeholder="ex. Orlando Marin, Sana Muneer, Tatiana Eng", key=f"team_input_{form_key}")
+                    title = st.text_input("Project Title *", value="", placeholder="ex. My Research Project", key=f"title_input_{form_key}")
+                    team = st.text_input("Additional Collaborators", value="", placeholder="ex. Orlando Marin, Sana Muneer", key=f"team_input_{form_key}")
                     department = st.selectbox("Department/Lab *", options=["Computer Science", "Data Science"], index=0, key=f"dept_input_{form_key}")
                     openings = st.number_input("Number of Openings *", min_value=1, max_value=10, value=1, step=1, key=f"openings_input_{form_key}")
                     start_date = st.date_input("Start Date *", key=f"start_date_input_{form_key}")
@@ -178,7 +139,6 @@ def main():
                     duration = st.selectbox("Duration *", options=["1 semester", "2 semesters", "More than 2 semesters"], index=0, key=f"duration_input_{form_key}")
                     weekly_hours = st.number_input("Number of Hours per Week *", min_value=1, value=1, step=1, key=f"hours_input_{form_key}")
 
-                    # Compensation type and dynamic Hourly Pay Rate
                     compensation_type = st.radio("Compensation Type *", ["Paid", "Unpaid"], index=None, key=f"comp_type_{form_key}")
                     if compensation_type == "Paid":
                         pay_rate = st.number_input(
@@ -214,7 +174,6 @@ def main():
 
                     submitted = st.button("Post Listing")
                     if submitted:
-                        # Validation: Check required fields
                         errors = []
                         if not title.strip():
                             errors.append("Project Title")
@@ -238,23 +197,17 @@ def main():
                             errors.append("Summary/Description")
                         if not communication:
                             errors.append("Preferred Method of Communication")
-                        
+
                         if errors:
                             st.error(f"Please fill out the following required fields: {', '.join(errors)}")
                         else:
-                            # Auto-generate Date Posted in "Month Day, Year" format
                             date_posted_formatted = datetime.now().strftime("%B %d, %Y")
-                            
-                            # Get user's name from profile
                             profile_data = get_user_profile(user_info['uid'])
                             posted_by = profile_data.get('name', 'Unknown') if profile_data else 'Unknown'
-                            
-                            # Format other data
                             start_date_formatted = start_date.strftime("%B %d, %Y")
                             skills_str = ", ".join(skills)
                             communication_str = ", ".join(communication)
-                            
-                            # Create new listing object
+
                             new_listing = {
                                 "title": title,
                                 "pi": posted_by,
@@ -273,21 +226,14 @@ def main():
                                 "communication": communication_str,
                                 "posted_by_uid": user_info['uid']
                             }
-                            
+
                             try:
-                                # Save to Firebase
                                 listing_id = save_listing_to_firebase(new_listing)
-                                
-                                # Store success message in session state
                                 st.session_state.listing_created = True
                                 st.session_state.listing_title = title
                                 st.session_state.listing_posted_by = posted_by
                                 st.session_state.listing_date = date_posted_formatted
-                                
-                                # Increment form counter to reset all fields
                                 st.session_state.form_counter += 1
-                                
-                                # Clear form by rerunning
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"Failed to create listing: {e}")
@@ -295,19 +241,18 @@ def main():
         # My Listings
         with tab3:
             st.header("My Listings")
-            
-            # Get listings created by this user from Firebase
             my_listings = get_user_listings_from_firebase(user_info['uid'])
             
             if my_listings:
-                # Create centered column layout
                 col1, col2, col3 = st.columns([1, 3, 1])
-                
                 with col2:
-                    for listing in my_listings[::-1]:  # Most recent first
-                        with st.container(border=True):
+                    for idx, listing in enumerate(my_listings[::-1]):
+                        listing_id = listing.get("listing_id") or f"{listing['title']}_{idx}"
+                        container_key = f"listing_container_{listing_id}"
+
+                        with st.container(key=container_key, border=True):
                             st.subheader(listing["title"])
-                            st.write(f"**Principal Investigator:** {listing['pi']}")
+                            st.write(f"Posted by {listing['pi']} on {listing['date_posted']}")
                             st.write(f"**Additional Collaborators:** {listing['team']}")
                             st.write(f"**Department/Lab:** {listing['department']}")
                             st.write(f"**Number of Openings:** {listing['openings']}")
@@ -316,13 +261,40 @@ def main():
                             st.write(f"**Number of Hours per Week:** {listing['weekly_hours']}")
                             st.write(f"**Hourly Pay Rate:** ${listing['pay_rate']}")
                             st.write(f"**Skills Required:** {listing['skills']}")
+                            if "website_urls" in listing and listing["website_urls"] != "n/a":
+                                st.write(f"**Website URL(s):** {listing['website_urls']}")
                             st.write(f"**Summary/Description:** {listing['summary']}")
-                            st.write(f"**Date Posted:** {listing['date_posted']}")
+                            if "communication" in listing and listing["communication"]:
+                                st.write(f"**Preferred Method of Communication:** {listing['communication']}")
                             st.write("")
+
+                            # Initialize session state for confirmation if not present
+                            if "delete_confirm" not in st.session_state:
+                                st.session_state.delete_confirm = {}
+
+                            # If this listing is being confirmed
+                            if st.session_state.delete_confirm.get(listing_id):
+                                st.warning(f"Are you sure you want to delete **{listing['title']}**?")
+                                col_yes, col_no = st.columns([1,1])
+                                with col_yes:
+                                    if st.button("Confirm Delete", key=f"confirm_{listing_id}"):
+                                        try:
+                                            delete_listing_from_firebase(listing.get("listing_id"))
+                                            st.success(f"'{listing['title']}' has been deleted.")
+                                            st.session_state.delete_confirm[listing_id] = False
+                                            st.rerun()
+                                        except Exception as e:
+                                            st.error(f"Failed to delete listing: {e}")
+                                with col_no:
+                                    if st.button("Cancel", key=f"cancel_{listing_id}"):
+                                        st.session_state.delete_confirm[listing_id] = False
+                                        st.rerun()
+                            else:
+                                if st.button("🗑️ Delete", key=f"delete_{listing_id}"):
+                                    st.session_state.delete_confirm[listing_id] = True
+                                    st.rerun()
             else:
                 st.info("You haven't created any listings yet.")
 
 if __name__ == "__main__":
     main()
-
-#-----END OF FILE-----
