@@ -15,6 +15,7 @@ from utils.home_utils import (
     initialize_session_state
 )
 from utils.profile_utils import get_user_profile
+from utils.general_utils import render_sidebar_auth, render_theme_tip
 
 # ----- DYNAMIC PAGE CONFIG -----
 def configure_page():
@@ -171,14 +172,11 @@ def auth_gate():
 
     # If logged in, show sidebar with logout
     with st.sidebar:
-        st.success(f"Logged in as {st.session_state.user['email']}")
+        render_sidebar_auth(show_role=True)
+        st.divider()
 
         # Theme tip
         render_theme_tip()
-
-        if st.button("Log Out", use_container_width=True):
-            logout()
-            st.rerun()
 
 # ----- LANDING / LOGIN / SIGNUP -----
 def hide_sidebar():
