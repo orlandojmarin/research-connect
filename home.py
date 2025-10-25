@@ -298,11 +298,19 @@ def render_signup():
         else:
             try:
                 create_account(email, password, first, last)
-                st.success("✅ Account created successfully! You can now log in.")
-                go("login")
-                st.rerun()
+                st.session_state.account_created = True  # ✅ flag for next render
+                st.rerun()  # triggers rerun so flag takes effect
             except Exception as e:
                 st.error(friendly_firebase_error(e))
+
+    # --- This part runs after rerun ---
+    if st.session_state.get("account_created"):
+        st.success("✅ Account created successfully! You can now log in below when you're ready.")
+        st.balloons()
+        if st.button("🔑 Go to Login", use_container_width=True):
+            st.session_state.account_created = False
+            go("login")
+            st.rerun()
 
 def render_login():
     """Render the login page with form inputs and authentication handling.
