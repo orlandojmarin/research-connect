@@ -61,30 +61,6 @@ def render_account_info(profile_data):
         st.write(f"**Role:** {profile_data.get('role', 'student')}")
         st.write(f"**Account Created:** {created_at_display}")
 
-# def render_danger_zone(uid, id_token):
-#     """Render the account deletion section.
-    
-#     Args:
-#         uid (str): User ID
-#         id_token (str): Firebase ID token
-#     """
-#     st.divider()
-#     st.subheader("⚠️ Danger Zone")
-#     st.write("Deleting your account will remove all of your data permanently. This action cannot be undone.")
-    
-#     if st.button("Delete My Account", type="primary"):
-#         with st.spinner("Deleting account..."):
-#             try:
-#                 delete_user_data(uid)
-#                 delete_self_account(id_token)
-                
-#                 st.success("Your account has been deleted.")
-#                 st.session_state.user = None
-#                 go("landing")
-#                 st.rerun()
-#             except Exception as e:
-#                 st.error(f"Failed to delete account: {e}")
-
 def render_danger_zone(uid, id_token):
     """Render the account deletion section.
     
