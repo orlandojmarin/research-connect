@@ -1,9 +1,9 @@
 # ORLANDO
-# Profile page where users can delete their account if needed
+# Profile page where users can view, edit, and delete their account
 
 import streamlit as st
 from utils.auth_utils import delete_self_account, go
-from utils.profile_utils import get_user_profile, delete_user_data
+from utils.profile_utils import get_user_profile, delete_user_data, update_user_profile
 from utils.general_utils import (
     auth_gate, get_current_user, configure_page,
     render_scsu_logo, render_sidebar_auth
@@ -32,11 +32,12 @@ def render_profile_header():
     st.title("👤 My Profile")
     st.markdown("Here you can view your account information and manage your profile.")
 
-def render_account_info(profile_data):
-    """Render the account information section.
+def render_account_info(profile_data, uid):
+    """Render the account information section with edit capability.
     
     Args:
         profile_data (dict): User profile data from Firebase
+        uid (str): User ID
     """
     # Format the created_at timestamp
     created_at_raw = profile_data.get('created_at', 'N/A')
@@ -54,12 +55,93 @@ def render_account_info(profile_data):
     else:
         created_at_display = 'N/A'
     
+    # Initialize edit mode state
+    if "edit_profile_mode" not in st.session_state:
+        st.session_state.edit_profile_mode = False
+    
     with st.container(border=True):
         st.subheader("Account Information")
-        st.write(f"**Name:** {profile_data.get('name', 'N/A')}")
-        st.write(f"**Email:** {profile_data.get('email', 'N/A')}")
-        st.write(f"**Role:** {profile_data.get('role', 'student')}")
-        st.write(f"**Account Created:** {created_at_display}")
+        
+        # Edit Profile Button
+        if not st.session_state.edit_profile_mode:
+            # Display mode
+            st.write(f"**Name:** {profile_data.get('name', 'N/A')}")
+            st.write(f"**Email:** {profile_data.get('email', 'N/A')}")
+            st.write(f"**Role:** {profile_data.get('role', 'student')}")
+            st.write(f"**Account Created:** {created_at_display}")
+            
+            if st.button("✏️ Edit Profile", key="edit_profile_btn"):
+                st.session_state.edit_profile_mode = True
+                st.rerun()
+        else:
+            # Edit mode
+            st.info("✏️ **Editing Profile** - Update your information below")
+            
+            # Get current name parts
+            current_name = profile_data.get('name', '')
+            name_parts = current_name.split(' ', 1)
+            current_first = name_parts[0] if len(name_parts) > 0 else ''
+            current_last = name_parts[1] if len(name_parts) > 1 else ''
+            
+            with st.form("edit_profile_form"):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    new_first_name = st.text_input(
+                        "First Name",
+                        value=current_first,
+                        placeholder="Enter your first name"
+                    )
+                
+                with col2:
+                    new_last_name = st.text_input(
+                        "Last Name", 
+                        value=current_last,
+                        placeholder="Enter your last name"
+                    )
+                
+                # Display non-editable fields
+                st.text_input("Email (cannot be changed)", value=profile_data.get('email', 'N/A'), disabled=True)
+                st.text_input("Role (cannot be changed)", value=profile_data.get('role', 'student'), disabled=True)
+                
+                col_save, col_cancel = st.columns(2)
+                
+                with col_save:
+                    submit_edit = st.form_submit_button("💾 Save Changes", type="primary", use_container_width=True)
+                
+                with col_cancel:
+                    cancel_edit = st.form_submit_button("❌ Cancel", use_container_width=True)
+            
+            # Handle form submission
+            if submit_edit:
+                # Collect all validation errors
+                errors = []
+                
+                if not new_first_name or not new_first_name.strip():
+                    errors.append("❌ First name cannot be empty.")
+                if not new_last_name or not new_last_name.strip():
+                    errors.append("❌ Last name cannot be empty.")
+                
+                # Display all errors or proceed with update
+                if errors:
+                    st.error("**Please fix the following issues:**")
+                    for error in errors:
+                        st.error(error)
+                else:
+                    # Update profile
+                    new_full_name = f"{new_first_name.strip()} {new_last_name.strip()}"
+                    
+                    try:
+                        update_user_profile(uid, {"name": new_full_name})
+                        st.success("✅ Profile updated successfully!")
+                        st.session_state.edit_profile_mode = False
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Failed to update profile: {e}")
+            
+            if cancel_edit:
+                st.session_state.edit_profile_mode = False
+                st.rerun()
 
 def render_danger_zone(uid, id_token):
     """Render the account deletion section.
@@ -170,7 +252,7 @@ def main():
         st.stop()
     
     # Render sections
-    render_account_info(profile_data)
+    render_account_info(profile_data, user_info['uid'])
     render_danger_zone(user_info['uid'], user_info['idToken'])
 
 if __name__ == "__main__":
