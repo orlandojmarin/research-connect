@@ -15,7 +15,20 @@ def save_listing_to_firebase(listing_data):
     except Exception as e:
         raise RuntimeError(f"Failed to save listing: {e}")
 
-
+def update_listing_in_firebase(listing_id, updated_data):
+    """
+    Update an existing listing in Firebase Realtime Database.
+    
+    Args:
+        listing_id: The unique listing ID
+        updated_data: Dictionary of fields to update
+    """
+    try:
+        db.child("listings").child(listing_id).update(updated_data)
+        return True
+    except Exception as e:
+        raise RuntimeError(f"Failed to update listing {listing_id}: {e}")
+    
 def get_all_listings_from_firebase():
     """
     Retrieve all listings from Firebase Realtime Database.
