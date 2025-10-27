@@ -38,12 +38,52 @@ def render_account_info(profile_data):
     Args:
         profile_data (dict): User profile data from Firebase
     """
+    # Format the created_at timestamp
+    created_at_raw = profile_data.get('created_at', 'N/A')
+    if created_at_raw != 'N/A':
+        try:
+            from datetime import datetime
+            # Parse ISO format timestamp
+            dt = datetime.fromisoformat(created_at_raw.replace('Z', '+00:00'))
+            # Convert UTC to local timezone
+            dt = dt.astimezone()
+            # Format as human-readable date
+            created_at_display = dt.strftime('%B %d, %Y at %I:%M %p')
+        except Exception:
+            created_at_display = created_at_raw
+    else:
+        created_at_display = 'N/A'
+    
     with st.container(border=True):
         st.subheader("Account Information")
         st.write(f"**Name:** {profile_data.get('name', 'N/A')}")
         st.write(f"**Email:** {profile_data.get('email', 'N/A')}")
         st.write(f"**Role:** {profile_data.get('role', 'student')}")
-        st.write(f"**Account Created:** {profile_data.get('created_at', 'N/A')}")
+        st.write(f"**Account Created:** {created_at_display}")
+
+# def render_danger_zone(uid, id_token):
+#     """Render the account deletion section.
+    
+#     Args:
+#         uid (str): User ID
+#         id_token (str): Firebase ID token
+#     """
+#     st.divider()
+#     st.subheader("⚠️ Danger Zone")
+#     st.write("Deleting your account will remove all of your data permanently. This action cannot be undone.")
+    
+#     if st.button("Delete My Account", type="primary"):
+#         with st.spinner("Deleting account..."):
+#             try:
+#                 delete_user_data(uid)
+#                 delete_self_account(id_token)
+                
+#                 st.success("Your account has been deleted.")
+#                 st.session_state.user = None
+#                 go("landing")
+#                 st.rerun()
+#             except Exception as e:
+#                 st.error(f"Failed to delete account: {e}")
 
 def render_danger_zone(uid, id_token):
     """Render the account deletion section.
@@ -56,18 +96,57 @@ def render_danger_zone(uid, id_token):
     st.subheader("⚠️ Danger Zone")
     st.write("Deleting your account will remove all of your data permanently. This action cannot be undone.")
     
-    if st.button("Delete My Account", type="primary"):
-        with st.spinner("Deleting account..."):
-            try:
-                delete_user_data(uid)
-                delete_self_account(id_token)
-                
-                st.success("Your account has been deleted.")
-                st.session_state.user = None
-                go("landing")
+    # Initialize session state for confirmation if not present
+    if "delete_account_confirm" not in st.session_state:
+        st.session_state.delete_account_confirm = False
+    
+    # If confirmation is active
+    if st.session_state.delete_account_confirm:
+        st.warning("⚠️ **Are you sure you want to delete your account?** This action cannot be undone!")
+        st.write("**Please enter your password to confirm:**")
+        
+        password = st.text_input("Password", type="password", key="delete_password_confirm")
+        
+        col_yes, col_no = st.columns([1, 1])
+        with col_yes:
+            if st.button("Confirm Delete Account", type="primary", key="confirm_delete_account"):
+                if not password:
+                    st.error("Please enter your password to confirm deletion.")
+                else:
+                    with st.spinner("Deleting account..."):
+                        try:
+                            # Re-authenticate to get a fresh token
+                            from utils.auth_utils import auth
+                            user = st.session_state.get("user")
+                            email = user.get("email")
+                            
+                            # Sign in again to get fresh token
+                            fresh_user = auth.sign_in_with_email_and_password(email, password)
+                            fresh_token = fresh_user["idToken"]
+                            
+                            # Delete user data and account
+                            delete_user_data(uid)
+                            delete_self_account(fresh_token)
+                            
+                            st.success("Your account has been deleted.")
+                            st.session_state.user = None
+                            st.session_state.delete_account_confirm = False
+                            go("landing")
+                            st.rerun()
+                        except Exception as e:
+                            error_msg = str(e)
+                            if "INVALID_PASSWORD" in error_msg or "INVALID_LOGIN_CREDENTIALS" in error_msg:
+                                st.error("Incorrect password. Please try again.")
+                            else:
+                                st.error(f"Failed to delete account: {e}")
+        with col_no:
+            if st.button("Cancel", key="cancel_delete_account"):
+                st.session_state.delete_account_confirm = False
                 st.rerun()
-            except Exception as e:
-                st.error(f"Failed to delete account: {e}")
+    else:
+        if st.button("Delete My Account", type="primary"):
+            st.session_state.delete_account_confirm = True
+            st.rerun()
 
 def main():
     """Main function to render the Profile page."""

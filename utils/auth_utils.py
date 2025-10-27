@@ -147,16 +147,42 @@ def create_account(email: str, password: str, first_name: str, last_name: str):
     admin_emails = (
         "marino1@southernct.edu",
         "engt1@southernct.edu",
-        "muneerb1@southernct.edu"
+        "muneerb1@southernct.edu",
+        "hossainm3@southernct.edu"
     )
-    role = "admin" if email.lower() in admin_emails else "student"
+
+    faculty_emails = (
+        "abdelraoufa1@southernct.edu",
+        "alseesis1@southernct.edu",
+        "antoniosi1@southernct.edu",
+        "elahia1@southernct.edu",
+        "islamm2@southernct.edu",
+        "kimc1@southernct.edu",
+        "lancorl1@southernct.edu",
+        "podnarh1@southernct.edu",
+        "seyedt1@southernct.edu",
+        "shetaa1@southernct.edu",
+        "upretya1@southernct.edu",
+        "wuh2@southernct.edu",
+        "yuw1@southernct.edu",
+        "pangy1@southernct.edu",
+        "lockwoodh1@southernct.edu"
+    )
+
+    # Assign role based on email
+    if email.lower() in admin_emails:
+        role = "admin"
+    elif email.lower() in faculty_emails:
+        role = "faculty"
+    else:
+        role = "student"
 
     # Save basic profile in DB
     db.child("users").child(uid).set({
         "email": email,
         "name": f"{first_name} {last_name}".strip(),
         "role": role,
-        "created_at": datetime.datetime.utcnow().isoformat() + "Z",
+        "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     })
 
     return uid
