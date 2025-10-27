@@ -107,10 +107,10 @@ def render_account_info(profile_data, uid):
                 col_save, col_cancel = st.columns(2)
                 
                 with col_save:
-                    submit_edit = st.form_submit_button("💾 Save Changes", type="primary", use_container_width=True)
+                    submit_edit = st.form_submit_button("💾 Save Changes", type="primary", width="stretch")
                 
                 with col_cancel:
-                    cancel_edit = st.form_submit_button("❌ Cancel", use_container_width=True)
+                    cancel_edit = st.form_submit_button("❌ Cancel", width="stretch")
             
             # Handle form submission
             if submit_edit:

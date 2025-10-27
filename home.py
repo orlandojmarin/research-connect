@@ -93,7 +93,7 @@ def render_quick_actions():
         with cols[i]:
             if st.button(
                 action["text"],
-                use_container_width=True,
+                width="stretch",
                 help=action["help"]
             ):
                 st.switch_page(action["page"])
@@ -209,7 +209,7 @@ def render_landing():
     # --- Logo inside center column to control its width ---
     left, center, right = st.columns([1, 2, 1])
     with center:
-        st.image("images/logo.png", use_container_width=True)
+        st.image("images/logo.png", width="stretch")
 
     st.write("")
 
@@ -218,11 +218,11 @@ def render_landing():
     with center:
         st.info("**Welcome!** Please log in or create an account to access ResearchConnect.")
         st.write("")
-        if st.button("🔑 Log In", use_container_width=True):
+        if st.button("🔑 Log In", width="stretch"):
             go("login")
             st.rerun()
         st.write("")
-        if st.button("✨ Create Account", use_container_width=True):
+        if st.button("✨ Create Account", width="stretch"):
             go("signup")
             st.rerun()
 
@@ -305,7 +305,7 @@ def render_signup():
     if st.session_state.get("account_created"):
         st.success("✅ Account created successfully! You can now log in below when you're ready.")
         st.balloons()
-        if st.button("🔑 Go to Login", use_container_width=True):
+        if st.button("🔑 Go to Login", width="stretch"):
             st.session_state.account_created = False
             go("login")
             st.rerun()

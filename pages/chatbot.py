@@ -32,7 +32,7 @@ with st.sidebar:
     st.divider()
     
     # Clear conversation button
-    if st.button("🔄 Clear Conversation", type="secondary", use_container_width=True):
+    if st.button("🔄 Clear Conversation", type="secondary", width="stretch"):
         clear_conversation()
         st.rerun()
 
