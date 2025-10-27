@@ -1,4 +1,5 @@
-streamlit
-google-cloud-aiplatform
-python-dotenv
 pyrebase4
+streamlit
+python-dotenv>=1.0.1
+google-cloud-discoveryengine>=0.12.0
+google-cloud-aiplatform>=1.66.0

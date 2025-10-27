@@ -11,6 +11,15 @@ import os
 from dotenv import load_dotenv
 import vertexai
 from vertexai.generative_models import GenerativeModel
+# --- NEW (RAG imports) ---
+# Vertex AI Search (website context) + Firebase listings helpers
+from utils.rag_utils import query_vertex_search, format_context, RAGSearchError
+from utils.firebase_query_utils import (
+    search_listings_by_keyword,
+    search_listings_by_faculty,
+    search_paid_listings,
+    format_listings_as_context,
+)
 
 # Load environment variables
 load_dotenv()
@@ -18,20 +27,22 @@ load_dotenv()
 @st.cache_resource
 def initialize_vertex_ai():
     """
-    Initialize Vertex AI connection with caching to avoid repeated initializations
-    
-    Returns:
-        GenerativeModel or None: Initialized model or None if fails
+    Initialize Vertex AI. Read from Streamlit secrets first, then .env.
     """
     try:
-        project_id = os.getenv('GCP_PROJECT_ID')
+        project_id = st.secrets.get("GCP_PROJECT_ID") or os.getenv("GCP_PROJECT_ID")
+        region = (
+            st.secrets.get("VERTEX_REGION") or
+            os.getenv("VERTEX_REGION") or
+            "us-central1"
+        )
         if not project_id:
-            print("GCP_PROJECT_ID not found in environment variables")
+            print("GCP_PROJECT_ID missing (check .streamlit/secrets.toml or .env)")
             return None
-        
-        vertexai.init(project=project_id, location="us-central1")
+
+        vertexai.init(project=project_id, location=region)
         model = GenerativeModel("gemini-2.5-flash")
-        print("Vertex AI initialized successfully")
+        print(f"Vertex AI initialized (project={project_id}, region={region})")
         return model
     except Exception as e:
         print(f"Failed to initialize Vertex AI: {e}")
@@ -147,6 +158,54 @@ def add_assistant_message(content):
     }
     st.session_state.messages.append(message)
 
+# -------- NEW: RAG classification + context builders --------
+RESEARCH_KWS = {
+    "research", "opportunity", "opportunities", "listing", "listings",
+    "position", "opening", "paid", "unpaid", "hours", "machine learning",
+    "ai", "data"
+}
+FACULTY_KWS  = {"professor", "faculty", "dr.", "dr ", "dr", "advisor", "pi"}
+
+def _classify_question(q: str) -> str:
+    """Classify the question: listings | faculty | general."""
+    ql = (q or "").lower()
+    if any(k in ql for k in FACULTY_KWS):
+        return "faculty"
+    if any(k in ql for k in RESEARCH_KWS):
+        return "listings"
+    return "general"
+
+def _build_context(q: str) -> str:
+    """
+    Retrieve context from Firebase and/or Vertex AI Search based on question type.
+    Returns a plain-text context block (may be empty).
+    """
+    qtype = _classify_question(q)
+
+    if qtype == "listings":
+        # Quick paid filter
+        if "paid" in (q or "").lower():
+            listings = search_paid_listings(True)
+        else:
+            listings = search_listings_by_keyword(q)
+        return format_listings_as_context(listings)
+
+    if qtype == "faculty":
+        fb_ctx = format_listings_as_context(search_listings_by_faculty(q))
+        try:
+            web_ctx = format_context(query_vertex_search(q, top_k=5))
+        except RAGSearchError:
+            web_ctx = ""
+        parts = [p for p in (fb_ctx, web_ctx) if p]
+        return "\n\n".join(parts)
+
+    # general → website
+    try:
+        return format_context(query_vertex_search(q, top_k=5))
+    except RAGSearchError:
+        return ""
+# -------- /NEW --------
+
 def generate_chatbot_response(user_input):
     """
     Generate chatbot responses using Vertex AI with conversation context.
@@ -170,6 +229,7 @@ Your role is to help students find research opportunities, connect with faculty,
 Be friendly, helpful, and specific to SCSU when possible. If you don't know something specific about SCSU, 
 guide the user to check the appropriate office or webpage."""
 
+
         # Take the last 10 messages from session state for context
         conversation_history = st.session_state.messages[-10:]
         
@@ -178,13 +238,20 @@ guide the user to check the appropriate office or webpage."""
         for msg in conversation_history:
             role = "Student" if msg["role"] == "user" else "ResearchAI"
             history_text += f"{role}: {msg['content']}\n"
+
         
         # Add the new user input at the end
         history_text += f"Student: {user_input}\nResearchAI:"
-
+        # --- NEW: fetch context for RAG ---
+        context_block = _build_context(user_input)
+        # --- /NEW ---
         # Combine system prompt + conversation
-        full_prompt = f"{system_prompt}\n\n{history_text}"
-
+        #full_prompt = f"{system_prompt}\n\n{history_text}"
+        full_prompt = (
+            f"{system_prompt}\n\n"
+            f"CONTEXT (may be empty):\n{context_block or '[no context]'}\n\n"
+            f"{history_text}"
+        )
         # Generate response
         response = model.generate_content(full_prompt)
         return response.text
