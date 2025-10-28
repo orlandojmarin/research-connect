@@ -252,43 +252,44 @@ def render_listings(listings, show_edit=False, show_delete=False, user_info=None
                         st.write(f"**Preferred Method of Communication:** {listing['communication']}")
                     st.write("")
                     
-                    # Action buttons row
-                    button_cols = st.columns([1, 1, 4])
+                    # Initialize session state for confirmation if not present
+                    delete_confirm_key = f"delete_confirm_{tab_prefix}"
+                    if delete_confirm_key not in st.session_state:
+                        st.session_state[delete_confirm_key] = {}
                     
-                    # Edit button
-                    if show_edit:
-                        with button_cols[0]:
-                            if st.button("✏️ Edit", key=f"edit_{tab_prefix}_{listing_id}_{idx}", use_container_width=True):
-                                st.session_state.editing_listing = listing_id
-                                st.session_state.editing_tab = tab_prefix
+                    # Check if delete confirmation is active for this listing
+                    if st.session_state[delete_confirm_key].get(listing_id):
+                        # Show full-width delete confirmation
+                        st.warning(f"Are you sure you want to delete **{listing['title']}**?")
+                        col_yes, col_no = st.columns([1, 1])
+                        with col_yes:
+                            if st.button("🗑️ Confirm Delete", key=f"confirm_{tab_prefix}_{listing_id}_{idx}", use_container_width=True):
+                                try:
+                                    delete_listing_from_firebase(listing.get("listing_id"))
+                                    st.success(f"'{listing['title']}' has been deleted.")
+                                    st.session_state[delete_confirm_key][listing_id] = False
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Failed to delete listing: {e}")
+                        with col_no:
+                            if st.button("❌ Cancel", key=f"cancel_{tab_prefix}_{listing_id}_{idx}", use_container_width=True):
+                                st.session_state[delete_confirm_key][listing_id] = False
                                 st.rerun()
-                    
-                    # Delete button
-                    if show_delete:
-                        with button_cols[1]:
-                            # Initialize session state for confirmation if not present
-                            delete_confirm_key = f"delete_confirm_{tab_prefix}"
-                            if delete_confirm_key not in st.session_state:
-                                st.session_state[delete_confirm_key] = {}
-                            
-                            # If this listing is being confirmed
-                            if st.session_state[delete_confirm_key].get(listing_id):
-                                st.warning(f"Are you sure you want to delete **{listing['title']}**?")
-                                col_yes, col_no = st.columns([1,1])
-                                with col_yes:
-                                    if st.button("Confirm Delete", key=f"confirm_{tab_prefix}_{listing_id}_{idx}"):
-                                        try:
-                                            delete_listing_from_firebase(listing.get("listing_id"))
-                                            st.success(f"'{listing['title']}' has been deleted.")
-                                            st.session_state[delete_confirm_key][listing_id] = False
-                                            st.rerun()
-                                        except Exception as e:
-                                            st.error(f"Failed to delete listing: {e}")
-                                with col_no:
-                                    if st.button("Cancel", key=f"cancel_{tab_prefix}_{listing_id}_{idx}"):
-                                        st.session_state[delete_confirm_key][listing_id] = False
-                                        st.rerun()
-                            else:
+                    else:
+                        # Action buttons row - keeping original narrow width
+                        button_cols = st.columns([1, 1, 4])
+                        
+                        # Edit button
+                        if show_edit:
+                            with button_cols[0]:
+                                if st.button("✏️ Edit", key=f"edit_{tab_prefix}_{listing_id}_{idx}", use_container_width=True):
+                                    st.session_state.editing_listing = listing_id
+                                    st.session_state.editing_tab = tab_prefix
+                                    st.rerun()
+                        
+                        # Delete button
+                        if show_delete:
+                            with button_cols[1]:
                                 if st.button("🗑️ Delete", key=f"delete_{tab_prefix}_{listing_id}_{idx}", use_container_width=True):
                                     st.session_state[delete_confirm_key][listing_id] = True
                                     st.rerun()
@@ -340,8 +341,8 @@ def main():
 
                 with st.container(border=True):
                     form_key = st.session_state.form_counter
-                    title = st.text_input("Project Title *", value="", placeholder="ex. My Research Project", key=f"title_input_{form_key}")
-                    team = st.text_input("Additional Collaborators", value="", placeholder="ex. Orlando Marin, Sana Muneer", key=f"team_input_{form_key}")
+                    title = st.text_input("Project Title *", value="", placeholder="ex. Biometric Authentication in Smartphones", key=f"title_input_{form_key}")
+                    team = st.text_input("Additional Collaborators", value="", placeholder="ex. Grace Hopper, John von Neumann", key=f"team_input_{form_key}")
                     department = st.selectbox("Department/Lab *", options=["Computer Science", "Data Science"], index=0, key=f"dept_input_{form_key}")
                     openings = st.number_input("Number of Openings *", min_value=1, max_value=10, value=1, step=1, key=f"openings_input_{form_key}")
                     start_date = st.date_input("Start Date *", key=f"start_date_input_{form_key}")
@@ -508,7 +509,7 @@ def main():
                                         st.warning(f"Are you sure you want to delete **{listing['title']}**?")
                                         col_yes, col_no = st.columns([1,1])
                                         with col_yes:
-                                            if st.button("Confirm Delete", key=f"confirm_my_{listing_id}"):
+                                            if st.button("🗑️ Confirm Delete", key=f"confirm_my_{listing_id}"):
                                                 try:
                                                     delete_listing_from_firebase(listing.get("listing_id"))
                                                     st.success(f"'{listing['title']}' has been deleted.")
@@ -517,7 +518,7 @@ def main():
                                                 except Exception as e:
                                                     st.error(f"Failed to delete listing: {e}")
                                         with col_no:
-                                            if st.button("Cancel", key=f"cancel_my_{listing_id}"):
+                                            if st.button("❌ Cancel", key=f"cancel_my_{listing_id}"):
                                                 st.session_state.delete_confirm_my[listing_id] = False
                                                 st.rerun()
                                     else:
