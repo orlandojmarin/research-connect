@@ -1,5 +1,5 @@
+# SANA (Authentication and all Functionality)
 # ORLANDO (UI) 
-# SANA (Authentication Functionality)
 # Streamlit Documentation: https://docs.streamlit.io/get-started 
 # run the program with streamlit run home.py
 
@@ -15,7 +15,10 @@ from utils.home_utils import (
     initialize_session_state
 )
 from utils.profile_utils import get_user_profile
-from utils.general_utils import render_sidebar_auth, render_theme_tip
+from utils.general_utils import render_sidebar_auth, render_theme_tip 
+
+from dotenv import load_dotenv
+load_dotenv()
 
 # ----- DYNAMIC PAGE CONFIG -----
 def configure_page():

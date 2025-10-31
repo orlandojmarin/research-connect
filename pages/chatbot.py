@@ -1,3 +1,4 @@
+# Sana update and renewed to work with RAG and firebase listings
 # ORLANDO
 # Streamlit Documentation: https://docs.streamlit.io/get-started 
 # Run the app with streamlit run home.py

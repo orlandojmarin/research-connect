@@ -1,27 +1,67 @@
+# Sana update and renewed to work with RAG and firebase listings
 # ORLANDO
 """
 Chatbot utilities for ResearchConnect SCSU
 Handles chatbot functionality, response generation, and conversation management
 """
-
 import datetime
 import random
+import re
 import streamlit as st
 import os
 from dotenv import load_dotenv
 import vertexai
 from vertexai.generative_models import GenerativeModel
-# --- NEW (RAG imports) ---
-# Vertex AI Search (website context) + Firebase listings helpers
-from utils.rag_utils import query_vertex_search, format_context, RAGSearchError
-from utils.firebase_query_utils import (
-    search_listings_by_keyword,
-    search_listings_by_faculty,
-    search_paid_listings,
-    format_listings_as_context,
+
+# ==========================================================
+# --- RAG + Firebase Imports (with SAFE ADAPTER) ---
+# ==========================================================
+from utils.rag_utils import answer_question  # local RAG .txt retrieval
+
+try:
+    from utils import firebase_query_utils as fq
+except Exception:
+    fq = None
+
+def _noop(*args, **kwargs):
+    """Return empty list or safe fallback if Firebase import fails."""
+    return []
+
+# Dynamically map whichever functions exist
+search_listings_by_keywords = (
+    getattr(fq, "search_listings_by_keywords", None)
+    or getattr(fq, "search_listings_by_keyword", None)
+    or _noop
 )
 
-# Load environment variables
+search_listings_by_faculty = (
+    getattr(fq, "search_listings_by_faculty", None)
+    or getattr(fq, "get_listings_by_faculty", None)
+    or _noop
+)
+
+search_paid_listings = getattr(fq, "search_paid_listings", _noop)
+
+format_listings_brief = (
+    getattr(fq, "format_listings_brief", None)
+    or getattr(fq, "format_listings_as_context", None)
+    or (lambda items: "No research listings match your query in the database.")
+)
+
+# Optional: Vertex AI Search helpers (not always defined in local RAG)
+try:
+    from utils.rag_utils import query_vertex_search, format_context, RAGSearchError
+except Exception:
+    class RAGSearchError(Exception):
+        pass
+    def query_vertex_search(q, top_k=5):
+        return []
+    def format_context(items):
+        return ""
+
+# ==========================================================
+# Load environment variables and initialize Vertex AI
+# ==========================================================
 load_dotenv()
 
 @st.cache_resource
@@ -32,9 +72,9 @@ def initialize_vertex_ai():
     try:
         project_id = st.secrets.get("GCP_PROJECT_ID") or os.getenv("GCP_PROJECT_ID")
         region = (
-            st.secrets.get("VERTEX_REGION") or
-            os.getenv("VERTEX_REGION") or
-            "us-central1"
+            st.secrets.get("VERTEX_REGION")
+            or os.getenv("VERTEX_REGION")
+            or "us-central1"
         )
         if not project_id:
             print("GCP_PROJECT_ID missing (check .streamlit/secrets.toml or .env)")
@@ -48,240 +88,188 @@ def initialize_vertex_ai():
         print(f"Failed to initialize Vertex AI: {e}")
         return None
 
+
+# ==========================================================
+# Chat Session & Utilities
+# ==========================================================
 def initialize_chat_session():
-    """
-    Initialize chat session state without an initial welcome message.
-    """
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
 def get_sidebar_info():
-    """
-    Get sidebar information and statistics
-    
-    Returns:
-        dict: Sidebar content configuration
-    """
-    sidebar_config = {
+    return {
         "assistant_description": {
             "title": "🧠 ResearchAI Assistant",
             "help_topics": [
                 "🔍 Finding research opportunities",
                 "👨‍🏫 Information about faculty",
-                "📚 Campus resources and offices", 
+                "📚 Campus resources and offices",
                 "💼 Internship and fellowship programs",
                 "📝 Application processes",
-                "❓ General research questions"
-            ]
+                "❓ General research questions",
+            ],
         },
     }
-    return sidebar_config
 
 def clear_conversation():
-    """
-    Clear the conversation history
-    """
     st.session_state.messages = []
     initialize_chat_session()
 
 def generate_prompt_summary(prompt_text):
-    """
-    Generate a concise 5-7 word summary of a user prompt using Vertex AI.
-    
-    Args:
-        prompt_text (str): The full user prompt
-        
-    Returns:
-        str: A 5-7 word summary
-    """
+    """Generate short summaries for long user prompts."""
     model = initialize_vertex_ai()
-    
     if not model:
-        # Fallback: return first 7 words if AI fails
         words = prompt_text.split()[:7]
         return " ".join(words) + "..."
-    
     try:
-        summary_prompt = f"""Generate a concise 5-7 word summary of the user's request. 
+        summary_prompt = f"""Generate a concise 5-7 word summary of the user's request.
 Only return the summary, nothing else.
 
 Text: {prompt_text}
 
 Summary:"""
-        
         response = model.generate_content(summary_prompt)
         summary = response.text.strip()
-        
-        # Ensure it's not too long (fallback)
         if len(summary.split()) > 10:
-            words = prompt_text.split()[:7]
-            return " ".join(words) + "..."
-        
+            return " ".join(prompt_text.split()[:7]) + "..."
         return summary
-        
-    except Exception as e:
-        print(f"Summary generation failed: {e}")
-        # Fallback: return first 7 words
-        words = prompt_text.split()[:7]
-        return " ".join(words) + "..."
+    except Exception:
+        return " ".join(prompt_text.split()[:7]) + "..."
 
 def add_user_message(content):
-    """
-    Add user message to chat history with optional summary for long prompts
-    
-    Args:
-        content (str): User message content
-    """
-    message = {
-        "role": "user",
-        "content": content,
-        "timestamp": datetime.datetime.now()
-    }
-    
-    # Generate summary if prompt is long (>200 characters)
+    msg = {"role": "user", "content": content, "timestamp": datetime.datetime.now()}
     if len(content) > 200:
-        message["summary"] = generate_prompt_summary(content)
-    
-    st.session_state.messages.append(message)
+        msg["summary"] = generate_prompt_summary(content)
+    st.session_state.messages.append(msg)
 
 def add_assistant_message(content):
-    """
-    Add assistant message to chat history
-    
-    Args:
-        content (str): Assistant message content
-    """
-    message = {
-        "role": "assistant", 
-        "content": content,
-        "timestamp": datetime.datetime.now()
-    }
-    st.session_state.messages.append(message)
+    st.session_state.messages.append(
+        {"role": "assistant", "content": content, "timestamp": datetime.datetime.now()}
+    )
 
-# -------- NEW: RAG classification + context builders --------
+# ==========================================================
+# Context Builders
+# ==========================================================
 RESEARCH_KWS = {
     "research", "opportunity", "opportunities", "listing", "listings",
     "position", "opening", "paid", "unpaid", "hours", "machine learning",
     "ai", "data"
 }
-FACULTY_KWS  = {"professor", "faculty", "dr.", "dr ", "dr", "advisor", "pi"}
+FACULTY_KWS = {"professor", "faculty", "dr.", "dr ", "advisor", "pi"}
 
 def _classify_question(q: str) -> str:
-    """Classify the question: listings | faculty | general."""
     ql = (q or "").lower()
     if any(k in ql for k in FACULTY_KWS):
         return "faculty"
     if any(k in ql for k in RESEARCH_KWS):
         return "listings"
     return "general"
+#-----------------helper function-----------------------------
 
+
+#---------------------------------------------------------
 def _build_context(q: str) -> str:
     """
-    Retrieve context from Firebase and/or Vertex AI Search based on question type.
-    Returns a plain-text context block (may be empty).
+    Retrieve relevant context from Firebase or local RAG.
+    Returns a conversationally formatted summary.
     """
-    qtype = _classify_question(q)
+    qtype = _classify_question(q or "")
+    ql = (q or "").lower()
 
+    # --- RESEARCH LISTINGS ---
     if qtype == "listings":
-        # Quick paid filter
-        if "paid" in (q or "").lower():
+        if "paid" in ql and "unpaid" not in ql:
             listings = search_paid_listings(True)
+            heading = "Yes! Here are some paid research opportunities currently available:"
+        elif "unpaid" in ql and "paid" not in ql:
+            listings = search_paid_listings(False)
+            heading = "Here are some unpaid research opportunities you might find interesting:"
         else:
-            listings = search_listings_by_keyword(q)
-        return format_listings_as_context(listings)
-
+            listings = search_listings_by_keywords(q)
+            heading = "Here are some research projects that match what you're asking about:"
+    # --- FACULTY ---
     if qtype == "faculty":
-        fb_ctx = format_listings_as_context(search_listings_by_faculty(q))
-        try:
-            web_ctx = format_context(query_vertex_search(q, top_k=5))
-        except RAGSearchError:
-            web_ctx = ""
-        parts = [p for p in (fb_ctx, web_ctx) if p]
-        return "\n\n".join(parts)
+        listings = search_listings_by_faculty(q)
+        if not listings:
+            return "I couldn’t find specific faculty-led research listings for that professor right now."
+        intro = "Here’s what I found from the faculty research database:"
+        text = format_listings_brief(listings)
+        return f"{intro}\n\n{text}\n\nYou can email the professor directly or visit during office hours for more details."
 
-    # general → website
+    # --- GENERAL INFO / WEBSITE CONTENT ---
     try:
-        return format_context(query_vertex_search(q, top_k=5))
-    except RAGSearchError:
+        snippet = answer_question(q)
+        if not snippet:
+            return ""
+        # Make it sound friendly if it’s a general info query
+        if any(word in ql for word in ["ihub", "website", "center", "office", "department", "email", "contact", "phone"]):
+            return (
+                f"Here’s what I found about that:\n\n{snippet}\n\n"
+                "If you’d like, I can give just the contact info or the main description — which would you prefer?"
+            )
+        return snippet
+    except Exception:
         return ""
-# -------- /NEW --------
 
+
+
+# ==========================================================
+# Chatbot Response (Hybrid Logic)
+# ==========================================================
 def generate_chatbot_response(user_input):
     """
-    Generate chatbot responses using Vertex AI with conversation context.
-    
-    Args:
-        user_input (str): User's input message
-        
-    Returns:
-        str: Generated response
+    Generate conversational chatbot responses with context-based logic.
     """
-    # Get cached model instance
     model = initialize_vertex_ai()
-    
     if not model:
         return "Vertex AI is not initialized."
 
     try:
-        # System instructions
-        system_prompt = """You are ResearchAI, an AI assistant for Southern Connecticut State University (SCSU). 
-Your role is to help students find research opportunities, connect with faculty, and navigate campus resources.
-Be friendly, helpful, and specific to SCSU when possible. If you don't know something specific about SCSU, 
-guide the user to check the appropriate office or webpage."""
-
-
-        # Take the last 10 messages from session state for context
-        conversation_history = st.session_state.messages[-10:]
-        
-        # Build the prompt including both user and assistant messages
-        history_text = ""
-        for msg in conversation_history:
-            role = "Student" if msg["role"] == "user" else "ResearchAI"
-            history_text += f"{role}: {msg['content']}\n"
-
-        
-        # Add the new user input at the end
-        history_text += f"Student: {user_input}\nResearchAI:"
-        # --- NEW: fetch context for RAG ---
+        # Decide context (faculty, listings, or general)
         context_block = _build_context(user_input)
-        # --- /NEW ---
-        # Combine system prompt + conversation
-        #full_prompt = f"{system_prompt}\n\n{history_text}"
-        full_prompt = (
-            f"{system_prompt}\n\n"
-            f"CONTEXT (may be empty):\n{context_block or '[no context]'}\n\n"
-            f"{history_text}"
+        if not context_block:
+            context_block = "[No specific context found; respond naturally.]"
+
+        # Construct prompt with conversational style
+        system_prompt = """You are ResearchAI, an AI assistant for Southern Connecticut State University (SCSU).
+Your tone should be friendly, conversational, and student-focused.
+When showing research listings, speak like you're chatting — not listing data mechanically.
+Example:
+'Yes! I found a few research projects you might like. One is led by Dr. Tatiana Eng in the Computer Science department...'
+
+When explaining website or office info (like iHub), summarize clearly but sound helpful, not robotic.
+Keep responses under 180 words unless asked for more detail."""
+
+        # Include last few messages for flow
+        history = st.session_state.messages[-6:]
+        history_text = "".join(
+            f"{'Student' if m['role']=='user' else 'ResearchAI'}: {m['content']}\n"
+            for m in history
         )
-        # Generate response
-        response = model.generate_content(full_prompt)
-        return response.text
+        history_text += f"Student: {user_input}\nResearchAI:"
+
+        prompt = (
+            f"{system_prompt}\n\nCONTEXT:\n{context_block}\n\n"
+            f"Conversation so far:\n{history_text}"
+        )
+
+        response = model.generate_content(prompt)
+        return response.text.strip()
 
     except Exception as e:
-        print(f"Vertex AI response failed: {e}")
-        return "Sorry, I'm having trouble generating a response right now."
+        print(f"[Gemini ERROR] {e}")
+        return "Hmm, something went wrong while generating your answer. Try rephrasing or asking again."
 
-
+# ==========================================================
+# Conversation Logging
+# ==========================================================
 def log_conversation(user_input, bot_response):
-    """
-    Log conversation for analytics and improvement
-    
-    Args:
-        user_input (str): User's input
-        bot_response (str): Bot's response
-    """
-    # Placeholder for conversation logging
-    # In the real application, log this to a database
     log_entry = {
         "timestamp": datetime.datetime.now(),
         "user_input": user_input,
         "bot_response": bot_response,
-        "session_id": st.session_state.get("session_id", "unknown")
+        "session_id": st.session_state.get("session_id", "unknown"),
     }
-    
-    # For now, just store in session state
     if "conversation_log" not in st.session_state:
         st.session_state.conversation_log = []
-    
     st.session_state.conversation_log.append(log_entry)
-
-#-----END OF FILE-----
