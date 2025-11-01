@@ -520,7 +520,7 @@ def render_verify_email():
         "**Tip:** If you don't see the email, check your spam folder or add the sender "
         "to your Safe Senders list and request a new verification email below."
     )
-    # NEW
+    
     with st.expander("📖 How to Add a Safe Sender in Outlook"):
         st.markdown("""
         **Step-by-step guide for Outlook:**
@@ -541,21 +541,23 @@ def render_verify_email():
     st.divider()
     st.subheader("Resend Verification Email")
 
-    # --- Resend verification email form ---
-    with st.form("resend_form"):
+    # FIXED: Capture password INSIDE the form submit check
+    with st.form("resend_form", clear_on_submit=False):  # Don't clear on submit
         st.caption("Enter your password to receive a new verification email")
         resend_pwd = st.text_input("Password", type="password", key="resend_pwd")
         resend_submit = st.form_submit_button("📧 Resend Verification Email", width="stretch")
-
-    if resend_submit:
-        if not resend_pwd:
-            st.error("Please enter your password")
-        else:
-            success, msg = resend_verification_email(email, resend_pwd)
-            if success:
-                st.success(msg)
+        
+        # Process INSIDE the form context
+        if resend_submit:
+            if not resend_pwd:
+                st.error("Please enter your password")
             else:
-                st.error(msg)
+                with st.spinner("Sending verification email..."):
+                    success, msg = resend_verification_email(email, resend_pwd)
+                    if success:
+                        st.success(msg)
+                    else:
+                        st.error(msg)
 
     st.divider()
 
