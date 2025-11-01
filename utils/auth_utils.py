@@ -1,5 +1,6 @@
 # SANA 
 # Updated by Orlando to hide firebase credentials
+# Updated with email verification functionality
 import pyrebase
 from requests.exceptions import HTTPError
 import requests
@@ -136,12 +137,165 @@ def friendly_firebase_error(err: Exception) -> str:
     
     return default_msg
 
+# ============================ EMAIL VERIFICATION ============================
+
+def get_continue_url():
+    """
+    Get the continue URL for email verification redirects.
+    Uses Streamlit secrets if available, falls back to environment variable.
+    """
+    # Try to get from Streamlit secrets first (for deployed app)
+    try:
+        if hasattr(st, 'secrets') and 'APP_URL' in st.secrets:
+            return st.secrets['APP_URL']
+    except:
+        pass
+    
+    # Fall back to environment variable
+    app_url = os.getenv('APP_URL', 'http://localhost:8501')
+    return app_url
+
+def send_verification_email(id_token: str):
+    """
+    Send email verification to the user with custom redirect URL.
+    
+    Args:
+        id_token: Firebase ID token from sign-in or account creation
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        api_key = firebaseConfig["apiKey"]
+        url = f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={api_key}"
+        
+        # Get the app URL for redirect after verification
+        continue_url = get_continue_url()
+        
+        payload = {
+            "requestType": "VERIFY_EMAIL",
+            "idToken": id_token,
+            "continueUrl": continue_url  # Redirect back to our app
+        }
+        
+        response = requests.post(url, json=payload, timeout=10)
+        response.raise_for_status()
+        return True
+        
+    except Exception as e:
+        print(f"Error sending verification email: {e}")
+        return False
+
+def check_email_verified(id_token: str) -> bool:
+    """
+    Check if user's email is verified.
+    
+    Args:
+        id_token: Firebase ID token
+    
+    Returns:
+        bool: True if email is verified, False otherwise
+    """
+    try:
+        account_info = auth.get_account_info(id_token)
+        users = account_info.get("users", [])
+        
+        if users:
+            return users[0].get("emailVerified", False)
+        
+        return False
+        
+    except Exception as e:
+        print(f"Error checking email verification: {e}")
+        return False
+
+def resend_verification_email(email: str, password: str):
+    """
+    Resend verification email for a user.
+    
+    Args:
+        email: User's email
+        password: User's password (needed to get fresh token)
+    
+    Returns:
+        tuple: (success: bool, message: str)
+    """
+    try:
+        # Sign in to get a fresh token
+        user = auth.sign_in_with_email_and_password(email, password)
+        id_token = user["idToken"]
+        
+        # Send verification email
+        if send_verification_email(id_token):
+            return True, "Verification email sent! Please check your inbox and spam folder."
+        else:
+            return False, "Failed to send verification email. Please try again later."
+            
+    except Exception as e:
+        return False, friendly_firebase_error(e)
+
+def handle_verify_email_action(oob_code: str):
+    """
+    Handle email verification action when user clicks link in email.
+    This actually applies the verification to the user's account.
+    
+    Args:
+        oob_code: The action code from the verification email URL
+    
+    Returns:
+        tuple: (success: bool, message: str, email: str or None)
+    """
+    try:
+        api_key = firebaseConfig["apiKey"]
+        url = f"https://identitytoolkit.googleapis.com/v1/accounts:update?key={api_key}"
+        
+        payload = {
+            "oobCode": oob_code
+        }
+        
+        response = requests.post(url, json=payload, timeout=10)
+        response.raise_for_status()
+        
+        # Get the response data
+        data = response.json()
+        email = data.get("email", "")
+        
+        return True, "Email verified successfully! You can now log in.", email
+        
+    except HTTPError as e:
+        if e.response is not None:
+            try:
+                error_data = e.response.json()
+                error_message = error_data.get("error", {}).get("message", "")
+                
+                if "INVALID_OOB_CODE" in error_message:
+                    return False, "This verification link is invalid or has already been used.", None
+                elif "EXPIRED_OOB_CODE" in error_message:
+                    return False, "This verification link has expired. Please request a new one.", None
+                else:
+                    return False, "Unable to verify email. Please try again or request a new verification email.", None
+            except:
+                pass
+        
+        return False, "Unable to verify email. Please try again or request a new verification email.", None
+    
+    except Exception as e:
+        print(f"Error handling email verification: {e}")
+        return False, "An error occurred while verifying your email. Please try again.", None
+
 # ============================ AUTH OPERATIONS ============================
 
 def create_account(email: str, password: str, first_name: str, last_name: str):
-    """Create a new Firebase user and store their profile in the database. Returns uid."""
+    """
+    Create a new Firebase user, send verification email, and store their profile.
+    
+    Returns:
+        tuple: (uid: str, id_token: str)
+    """
+    # Create user account
     user = auth.create_user_with_email_and_password(email, password)
     uid = user["localId"]
+    id_token = user["idToken"]
 
     # Determine role based on email
     admin_emails = (
@@ -184,16 +338,34 @@ def create_account(email: str, password: str, first_name: str, last_name: str):
         "name": f"{first_name} {last_name}".strip(),
         "role": role,
         "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "email_verified": False  # Track verification status
     })
 
-    return uid
+    # Send verification email
+    send_verification_email(id_token)
+
+    return uid, id_token
 
 def sign_in(email: str, password: str):
-    """Sign in a Firebase user and return (uid, id_token)."""
+    """
+    Sign in a Firebase user and return (uid, id_token, email_verified).
+    
+    Returns:
+        tuple: (uid: str, id_token: str, email_verified: bool)
+    """
     user = auth.sign_in_with_email_and_password(email, password)
-    info = auth.get_account_info(user["idToken"])
+    id_token = user["idToken"]
+    
+    # Get account info to check verification status
+    info = auth.get_account_info(id_token)
     uid = info["users"][0]["localId"]
-    return uid, user["idToken"]
+    email_verified = info["users"][0].get("emailVerified", False)
+    
+    # Update verification status in database
+    if email_verified:
+        db.child("users").child(uid).update({"email_verified": True})
+    
+    return uid, id_token, email_verified
 
 def go(page: str):
     """Set the Streamlit session state page to navigate between app pages."""
