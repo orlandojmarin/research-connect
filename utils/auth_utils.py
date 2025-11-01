@@ -1,6 +1,5 @@
-# SANA 
-# Updated by Orlando to hide firebase credentials
-# Updated with email verification functionality
+# Started by Sana 
+# Updated by Orlando to protect credentials and add email verification functionality
 import pyrebase
 from requests.exceptions import HTTPError
 import requests

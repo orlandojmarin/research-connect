@@ -210,49 +210,89 @@ def render_email_verification_handler(oob_code: str):
         success, message, email = handle_verify_email_action(oob_code)
     
     if success:
-        st.success("✅ " + message)
+        # SUCCESS - Automatically redirect to login page
+        st.success(f"✅ {message}")
         st.balloons()
         
+        # Show brief confirmation message
         st.info("🎉 **Your email has been successfully verified!**\n\n"
-                "**Next Steps:**\n"
-                "1. You can close this tab/window\n"
-                "2. Return to your original ResearchConnect tab\n"
-                "3. Log in with your credentials\n\n"
-                "**Don't have the original tab open?** Use the login button below:")
+                "Redirecting you to the login page...")
         
-        # Show login button as backup option
-        if st.button("🔑 Open Login Page", width="stretch", type="primary", key="login_btn"):
-            st.session_state.user = None
-            st.session_state.page = "login"
-            st.query_params.clear()
-            st.rerun()
+        # CRITICAL FIX: Clear query params FIRST, then redirect
+        # This prevents the verification handler from running again
+        st.query_params.clear()
+        st.session_state.user = None
+        st.session_state.page = "login"
+        
+        # Add a small delay so users can see the success message
+        import time
+        time.sleep(2)
+        st.rerun()
             
     else:
-        st.error(message)
+        # FAILURE - Handle different error scenarios
+        st.error("❌ Email Verification Failed")
         
-        # Determine if they should retry or login
-        if "already been used" in message.lower():
-            st.info("**This verification link has already been used.**\n\n"
-                   "Your email may already be verified! Try logging in below.")
-        else:
-            st.info("**What to do next:**\n\n"
-                   "1. The link may have expired (links are valid for 24 hours)\n"
-                   "2. Try logging in - you may already be verified\n"
-                   "3. If needed, request a new verification email after logging in")
-        
-        col1, col2 = st.columns(2)
-        with col1:
+        # Provide context-specific guidance based on the error
+        if "already been used" in message.lower() or "invalid" in message.lower():
+            st.warning("**This verification link has already been used or is invalid.**\n\n"
+                      "Your email may already be verified! Try logging in with your credentials.")
+            
+            # Direct to login for already-verified users
             if st.button("🔑 Go to Login", width="stretch", type="primary"):
+                # CRITICAL FIX: Clear query params FIRST
+                st.query_params.clear()
                 st.session_state.user = None
                 st.session_state.page = "login"
-                st.query_params.clear()
                 st.rerun()
-        with col2:
-            if st.button("✨ Create New Account", width="stretch"):
-                st.session_state.user = None
-                st.session_state.page = "signup"
-                st.query_params.clear()
-                st.rerun()
+                
+        elif "expired" in message.lower():
+            st.warning("**This verification link has expired.**\n\n"
+                      "Verification links are valid for 24 hours.\n\n"
+                      "**What to do next:**\n"
+                      "1. Go to the login page\n"
+                      "2. Enter your credentials\n"
+                      "3. You'll be prompted to request a new verification email if needed")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("🔑 Go to Login", width="stretch", type="primary"):
+                    # CRITICAL FIX: Clear query params FIRST
+                    st.query_params.clear()
+                    st.session_state.user = None
+                    st.session_state.page = "login"
+                    st.rerun()
+            with col2:
+                if st.button("✨ Create New Account", width="stretch"):
+                    # CRITICAL FIX: Clear query params FIRST
+                    st.query_params.clear()
+                    st.session_state.user = None
+                    st.session_state.page = "signup"
+                    st.rerun()
+        else:
+            # Generic error - show both options
+            st.warning("**Unable to verify your email at this time.**\n\n"
+                      f"Error details: {message}\n\n"
+                      "**What to do next:**\n"
+                      "- Try logging in (you may already be verified)\n"
+                      "- If you can't log in, request a new verification email")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("🔑 Go to Login", width="stretch", type="primary"):
+                    # CRITICAL FIX: Clear query params FIRST
+                    st.query_params.clear()
+                    st.session_state.user = None
+                    st.session_state.page = "login"
+                    st.rerun()
+            with col2:
+                if st.button("✨ Create New Account", width="stretch"):
+                    # CRITICAL FIX: Clear query params FIRST
+                    st.query_params.clear()
+                    st.session_state.user = None
+                    st.session_state.page = "signup"
+                    st.rerun()
+
 
 # ----- LANDING / LOGIN / SIGNUP -----
 def hide_sidebar():
@@ -302,7 +342,6 @@ def render_landing():
             go("signup")
             st.rerun()
 
-
 def render_signup():
     """Render the account creation page with form inputs and validation."""
     st.title("Create Account")
@@ -314,21 +353,20 @@ def render_signup():
     
     # Simplified email verification instructions
     st.warning("📧 **Important: Before Creating Your Account**\n\n"
-               "To ensure you receive the verification email:\n\n"
-               "**Add this email to your Outlook Safe Senders:**\n"
+               "To ensure you receive the verification email, add this email to your Outlook Safe Senders:\n\n"
                "`noreply@researchconnect-scsu-474217.firebaseapp.com`\n\n")
     
-    with st.expander("📖 Detailed Instructions (click to expand)"):
+    with st.expander("📖 How to Add a Safe Sender in Outlook"):
         st.markdown("""
         **Step-by-step guide for Outlook:**
         
         1. Log into [Outlook Web](https://outlook.office.com) with your SCSU credentials
         2. Click the **Settings gear** (⚙️) in the top-right corner
         3. Click on **Junk email** under Mail settings
-        5. Under **Safe senders and domains**, click **Add**
-        6. Paste: `noreply@researchconnect-scsu-474217.firebaseapp.com`
-        7. Click **Save**
-        8. Return to this page and create your account
+        4. Under **Safe senders and domains**, click **Add**
+        5. Paste: `noreply@researchconnect-scsu-474217.firebaseapp.com`
+        6. Click **Save**
+        7. Return to this page and create your account
         
         **Why is this necessary?**  
         Outlook's security system may block emails from new senders. Adding this address to your 
@@ -407,16 +445,10 @@ def render_signup():
                 "**Next Steps:**\n"
                 "1. Check your SCSU email inbox (should arrive within 1-2 minutes)\n"
                 "2. Click the verification link in the email\n"
-                "3. A new tab will open confirming verification\n"
-                "4. Close that tab and return here to log in\n\n"
+                "3. You'll be automatically redirected to the login page\n"
+                "4. Log in with your credentials to access ResearchConnect\n\n"
                 "**Didn't receive it?** Wait a few minutes, then check your spam folder. "
                 "You can also request a new verification email after attempting to log in.")
-        
-        if st.button("🔑 Go to Login", width="stretch"):
-            st.session_state.account_created = False
-            st.session_state.pop('verification_email', None)
-            go("login")
-            st.rerun()
 
 def render_login():
     """Render the login page with form inputs and authentication handling."""
@@ -488,6 +520,23 @@ def render_verify_email():
         "**Tip:** If you don't see the email, check your spam folder or add the sender "
         "to your Safe Senders list and request a new verification email below."
     )
+    # NEW
+    with st.expander("📖 How to Add a Safe Sender in Outlook"):
+        st.markdown("""
+        **Step-by-step guide for Outlook:**
+        
+        1. Log into [Outlook Web](https://outlook.office.com) with your SCSU credentials
+        2. Click the **Settings gear** (⚙️) in the top-right corner
+        3. Click on **Junk email** under Mail settings
+        5. Under **Safe senders and domains**, click **Add**
+        6. Paste: `noreply@researchconnect-scsu-474217.firebaseapp.com`
+        7. Click **Save**
+        8. Return to this page and create your account
+        
+        **Why is this necessary?**  
+        Outlook's security system may block emails from new senders. Adding this address to your 
+        Safe Senders ensures the verification email reaches your inbox immediately.
+        """)
 
     st.divider()
     st.subheader("Resend Verification Email")
