@@ -1,5 +1,6 @@
 # ORLANDO (UI) 
 # SANA (Authentication Functionality)
+# Updated with email verification and custom action handler
 # Streamlit Documentation: https://docs.streamlit.io/get-started 
 # run the program with streamlit run home.py
 
@@ -8,7 +9,9 @@ from datetime import datetime
 from utils.auth_utils import (
     auth, db, sanitize_email, is_allowed_sc_su_email,
     strong_password, friendly_firebase_error,
-    create_account, sign_in, logout, go
+    create_account, sign_in, logout, go,
+    check_email_verified, resend_verification_email,
+    handle_verify_email_action
 )
 from utils.home_utils import (
     get_quick_actions, get_feature_descriptions,
@@ -152,6 +155,18 @@ def render_footer():
 # ----- AUTH GATE -----
 def auth_gate():
     """Gate access based on authentication state and handle sidebar visibility."""
+
+    # Check if user clicked verification link in email
+    query_params = st.query_params
+    mode = query_params.get("mode")
+    oob_code = query_params.get("oobCode")
+    
+    # Handle email verification from link
+    if mode == "verifyEmail" and oob_code:
+        hide_sidebar()
+        render_email_verification_handler(oob_code)
+        st.stop()
+
     # Ensure session keys exist
     if "user" not in st.session_state:
         st.session_state.user = None
@@ -170,13 +185,114 @@ def auth_gate():
             render_login()
         st.stop()
 
-    # If logged in, show sidebar with logout
+    # Check if email is verified
+    user_session = st.session_state.user
+    if not user_session.get("email_verified", False):
+        hide_sidebar()
+        render_verify_email()
+        st.stop()
+
+    # If logged in and verified, show sidebar with logout
     with st.sidebar:
         render_sidebar_auth(show_role=True)
         st.divider()
 
         # Theme tip
         render_theme_tip()
+
+# ----- EMAIL VERIFICATION HANDLER -----
+def render_email_verification_handler(oob_code: str):
+    """Handle email verification when user clicks link in email"""
+    
+    st.title("Email Verification ✉️")
+    
+    with st.spinner("Verifying your email..."):
+        success, message, email = handle_verify_email_action(oob_code)
+    
+    if success:
+        # SUCCESS - Automatically redirect to login page
+        st.success(f"✅ {message}")
+        st.balloons()
+        
+        # Show brief confirmation message
+        st.info("🎉 **Your email has been successfully verified!**\n\n"
+                "Redirecting you to the login page...")
+        
+        # CRITICAL FIX: Clear query params FIRST, then redirect
+        # This prevents the verification handler from running again
+        st.query_params.clear()
+        st.session_state.user = None
+        st.session_state.page = "login"
+        
+        # Add a small delay so users can see the success message
+        import time
+        time.sleep(2)
+        st.rerun()
+            
+    else:
+        # FAILURE - Handle different error scenarios
+        st.error("❌ Email Verification Failed")
+        
+        # Provide context-specific guidance based on the error
+        if "already been used" in message.lower() or "invalid" in message.lower():
+            st.warning("**This verification link has already been used or is invalid.**\n\n"
+                      "Your email may already be verified! Try logging in with your credentials.")
+            
+            # Direct to login for already-verified users
+            if st.button("🔑 Go to Login", width="stretch", type="primary"):
+                # CRITICAL FIX: Clear query params FIRST
+                st.query_params.clear()
+                st.session_state.user = None
+                st.session_state.page = "login"
+                st.rerun()
+                
+        elif "expired" in message.lower():
+            st.warning("**This verification link has expired.**\n\n"
+                      "Verification links are valid for 24 hours.\n\n"
+                      "**What to do next:**\n"
+                      "1. Go to the login page\n"
+                      "2. Enter your credentials\n"
+                      "3. You'll be prompted to request a new verification email if needed")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("🔑 Go to Login", width="stretch", type="primary"):
+                    # CRITICAL FIX: Clear query params FIRST
+                    st.query_params.clear()
+                    st.session_state.user = None
+                    st.session_state.page = "login"
+                    st.rerun()
+            with col2:
+                if st.button("✨ Create New Account", width="stretch"):
+                    # CRITICAL FIX: Clear query params FIRST
+                    st.query_params.clear()
+                    st.session_state.user = None
+                    st.session_state.page = "signup"
+                    st.rerun()
+        else:
+            # Generic error - show both options
+            st.warning("**Unable to verify your email at this time.**\n\n"
+                      f"Error details: {message}\n\n"
+                      "**What to do next:**\n"
+                      "- Try logging in (you may already be verified)\n"
+                      "- If you can't log in, request a new verification email")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("🔑 Go to Login", width="stretch", type="primary"):
+                    # CRITICAL FIX: Clear query params FIRST
+                    st.query_params.clear()
+                    st.session_state.user = None
+                    st.session_state.page = "login"
+                    st.rerun()
+            with col2:
+                if st.button("✨ Create New Account", width="stretch"):
+                    # CRITICAL FIX: Clear query params FIRST
+                    st.query_params.clear()
+                    st.session_state.user = None
+                    st.session_state.page = "signup"
+                    st.rerun()
+
 
 # ----- LANDING / LOGIN / SIGNUP -----
 def hide_sidebar():
@@ -226,18 +342,36 @@ def render_landing():
             go("signup")
             st.rerun()
 
-
 def render_signup():
-    """Render the account creation page with form inputs and validation.
-    
-    Includes a back button to return to the landing page.
-    """
+    """Render the account creation page with form inputs and validation."""
     st.title("Create Account")
 
     # Back button
     if st.button("← Back"):
         go("landing")
         st.rerun()
+    
+    # Simplified email verification instructions
+    st.warning("📧 **Important: Before Creating Your Account**\n\n"
+               "To ensure you receive the verification email, add this email to your Outlook Safe Senders:\n\n"
+               "`noreply@researchconnect-scsu-474217.firebaseapp.com`\n\n")
+    
+    with st.expander("📖 How to Add a Safe Sender in Outlook"):
+        st.markdown("""
+        **Step-by-step guide for Outlook:**
+        
+        1. Log into [Outlook Web](https://outlook.office.com) with your SCSU credentials
+        2. Click the **Settings gear** (⚙️) in the top-right corner
+        3. Click on **Junk email** under Mail settings
+        4. Under **Safe senders and domains**, click **Add**
+        5. Paste: `noreply@researchconnect-scsu-474217.firebaseapp.com`
+        6. Click **Save**
+        7. Return to this page and create your account
+        
+        **Why is this necessary?**  
+        Outlook's security system may block emails from new senders. Adding this address to your 
+        Safe Senders ensures the verification email reaches your inbox immediately.
+        """)
     
     # Helpful information box
     st.info("📝 **Account Requirements:**\n"
@@ -295,26 +429,29 @@ def render_signup():
                 st.error(error)
         else:
             try:
-                create_account(email, password, first, last)
-                st.session_state.account_created = True  # ✅ flag for next render
-                st.rerun()  # triggers rerun so flag takes effect
+                uid, id_token = create_account(email, password, first, last)
+                st.session_state.verification_email = email
+                st.session_state.account_created = True
+                st.rerun()
             except Exception as e:
                 st.error(friendly_firebase_error(e))
 
     # --- This part runs after rerun ---
     if st.session_state.get("account_created"):
-        st.success("✅ Account created successfully! You can now log in below when you're ready.")
+        st.success("✅ Account created successfully!")
         st.balloons()
-        if st.button("🔑 Go to Login", width="stretch"):
-            st.session_state.account_created = False
-            go("login")
-            st.rerun()
+        st.info("📧 **Verification Email Sent!**\n\n"
+                f"We've sent a verification email to **{st.session_state.get('verification_email')}**.\n\n"
+                "**Next Steps:**\n"
+                "1. Check your SCSU email inbox (should arrive within 1-2 minutes)\n"
+                "2. Click the verification link in the email\n"
+                "3. You'll be automatically redirected to the login page\n"
+                "4. Log in with your credentials to access ResearchConnect\n\n"
+                "**Didn't receive it?** Wait a few minutes, then check your spam folder. "
+                "You can also request a new verification email after attempting to log in.")
 
 def render_login():
-    """Render the login page with form inputs and authentication handling.
-    
-    Includes a back button to return to the landing page.
-    """
+    """Render the login page with form inputs and authentication handling."""
     st.title("Log In")
     if st.button("← Back"):
         go("landing")
@@ -345,14 +482,88 @@ def render_login():
                 st.error(error)
         else:
             try:
-                uid, token = sign_in(email, password)
-                st.session_state.user = {"uid": uid, "email": email, "idToken": token}
+                uid, token, email_verified = sign_in(email, password)
+                
+                # Get user profile
                 profile = db.child("users").child(uid).get().val() or {}
-                st.session_state.user["role"] = profile.get("role", "student")
+                
+                # Store in session
+                st.session_state.user = {
+                    "uid": uid,
+                    "email": email,
+                    "idToken": token,
+                    "role": profile.get("role", "student"),
+                    "email_verified": email_verified
+                }
+                
                 go("home")
                 st.rerun()
+                
             except Exception as e:
                 st.error(friendly_firebase_error(e))
+
+def render_verify_email():
+    """Render the email verification page."""
+    st.title("Verify Your Email 📧")
+
+    user_session = st.session_state.user
+    email = user_session.get("email", "")
+
+    st.warning(f"Please verify your email address to continue.\n\nVerification sent to **{email}**")
+
+    st.info(
+        "📬 **Check Your Email:**\n\n"
+        "1. Look for an email from `noreply@researchconnect-scsu-474217.firebaseapp.com`\n"
+        "2. Click the verification link in the email\n"
+        "3. A new tab will open to confirm verification\n"
+        "4. Close that tab and log in again here\n\n"
+        "**Tip:** If you don't see the email, check your spam folder or add the sender "
+        "to your Safe Senders list and request a new verification email below."
+    )
+    
+    with st.expander("📖 How to Add a Safe Sender in Outlook"):
+        st.markdown("""
+        **Step-by-step guide for Outlook:**
+        
+        1. Log into [Outlook Web](https://outlook.office.com) with your SCSU credentials
+        2. Click the **Settings gear** (⚙️) in the top-right corner
+        3. Click on **Junk email** under Mail settings
+        5. Under **Safe senders and domains**, click **Add**
+        6. Paste: `noreply@researchconnect-scsu-474217.firebaseapp.com`
+        7. Click **Save**
+        8. Return to this page and create your account
+        
+        **Why is this necessary?**  
+        Outlook's security system may block emails from new senders. Adding this address to your 
+        Safe Senders ensures the verification email reaches your inbox immediately.
+        """)
+
+    st.divider()
+    st.subheader("Resend Verification Email")
+
+    # FIXED: Capture password INSIDE the form submit check
+    with st.form("resend_form", clear_on_submit=False):  # Don't clear on submit
+        st.caption("Enter your password to receive a new verification email")
+        resend_pwd = st.text_input("Password", type="password", key="resend_pwd")
+        resend_submit = st.form_submit_button("📧 Resend Verification Email", width="stretch")
+        
+        # Process INSIDE the form context
+        if resend_submit:
+            if not resend_pwd:
+                st.error("Please enter your password")
+            else:
+                with st.spinner("Sending verification email..."):
+                    success, msg = resend_verification_email(email, resend_pwd)
+                    if success:
+                        st.success(msg)
+                    else:
+                        st.error(msg)
+
+    st.divider()
+
+    if st.button("← Log Out"):
+        logout()
+        st.rerun()
 
 # ----- RUN APP -----
 if __name__ == "__main__":
