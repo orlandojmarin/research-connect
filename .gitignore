@@ -1,4 +1,7 @@
 .env
 gcp-credentials.json
-secrets.toml
+
+*.toml
+!.streamlit/config.toml
+.streamlit/secrets.toml
 __pycache__/
