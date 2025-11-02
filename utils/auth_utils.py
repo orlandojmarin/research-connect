@@ -393,7 +393,7 @@
 
 # Started by Sana 
 # Updated by Orlando to protect credentials and add email verification functionality
-import pyrebase
+import pyrebase4 as pyrebase
 from requests.exceptions import HTTPError
 import requests
 import json, unicodedata, re
