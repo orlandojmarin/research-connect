@@ -1,44 +1,3 @@
-# # ORLANDO
-# """
-# Chatbot utilities for ResearchConnect SCSU
-# Handles chatbot functionality, response generation, and conversation management
-# """
-
-# import datetime
-# import random
-# import streamlit as st
-# import os
-# from dotenv import load_dotenv
-# import vertexai
-# from vertexai.generative_models import GenerativeModel
-
-# # Load environment variables
-# load_dotenv()
-
-# @st.cache_resource
-# def initialize_vertex_ai():
-#     """
-#     Initialize Vertex AI connection with caching to avoid repeated initializations
-    
-#     Returns:
-#         GenerativeModel or None: Initialized model or None if fails
-#     """
-#     try:
-#         project_id = os.getenv('GCP_PROJECT_ID')
-#         if not project_id:
-#             print("GCP_PROJECT_ID not found in environment variables")
-#             return None
-        
-#         vertexai.init(project=project_id, location="us-central1")
-#         model = GenerativeModel("gemini-2.5-flash")
-#         print("Vertex AI initialized successfully")
-#         return model
-#     except Exception as e:
-#         print(f"Failed to initialize Vertex AI: {e}")
-#         return None
-
-#-----END OF FILE-----
-
 # ORLANDO
 """
 Chatbot utilities for ResearchConnect SCSU
@@ -262,5 +221,47 @@ def log_conversation(user_input, bot_response):
         st.session_state.conversation_log = []
     
     st.session_state.conversation_log.append(log_entry)
+
+#-----END OF FILE-----
+
+
+# # ORLANDO
+# """
+# Chatbot utilities for ResearchConnect SCSU
+# Handles chatbot functionality, response generation, and conversation management
+# """
+
+# import datetime
+# import random
+# import streamlit as st
+# import os
+# from dotenv import load_dotenv
+# import vertexai
+# from vertexai.generative_models import GenerativeModel
+
+# # Load environment variables
+# load_dotenv()
+
+# @st.cache_resource
+# def initialize_vertex_ai():
+#     """
+#     Initialize Vertex AI connection with caching to avoid repeated initializations
+    
+#     Returns:
+#         GenerativeModel or None: Initialized model or None if fails
+#     """
+#     try:
+#         project_id = os.getenv('GCP_PROJECT_ID')
+#         if not project_id:
+#             print("GCP_PROJECT_ID not found in environment variables")
+#             return None
+        
+#         vertexai.init(project=project_id, location="us-central1")
+#         model = GenerativeModel("gemini-2.5-flash")
+#         print("Vertex AI initialized successfully")
+#         return model
+#     except Exception as e:
+#         print(f"Failed to initialize Vertex AI: {e}")
+#         return None
 
 #-----END OF FILE-----
