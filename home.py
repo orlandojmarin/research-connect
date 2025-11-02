@@ -509,7 +509,7 @@ def render_verify_email():
     user_session = st.session_state.user
     email = user_session.get("email", "")
 
-    st.warning(f"Please verify your email address to continue.\n\nVerification sent to **{email}**")
+    st.warning(f"Please verify your email address to continue.\n\nVerification will be sent to **{email}**")
 
     st.info(
         "📬 **Check Your Email:**\n\n"
