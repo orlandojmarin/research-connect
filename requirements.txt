@@ -1,12 +1,5 @@
 streamlit
 google-cloud-aiplatform
 python-dotenv
-
-# Pyrebase and its dependencies
-pyrebase
-gcloud
-python-jwt
-pycryptodome
+firebase-admin
 requests
-requests-toolbelt
-urllib3
