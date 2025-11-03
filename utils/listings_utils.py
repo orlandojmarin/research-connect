@@ -117,3 +117,5 @@ def filter_listings(listings, hours_filter, compensation_filter, faculty_filter)
             filtered.append(listing)
 
     return filtered
+
+#-----END OF FILE-----

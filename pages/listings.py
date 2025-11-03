@@ -1140,6 +1140,9 @@ from utils.listings_utils import (
     update_listing_in_firebase,
     toggle_favorite_listing,
     get_user_favorite_listings
+    update_listing_in_firebase,
+    toggle_favorite_listing,
+    get_user_favorite_listings
 )
 from utils.profile_utils import get_user_profile
 from utils.general_utils import (
@@ -1352,11 +1355,6 @@ def render_listings(listings, show_edit=False, show_delete=False, show_favorite=
         user_info: Current user information for permission checks
         tab_prefix: Prefix for session state keys to avoid conflicts between tabs
     """
-    # Get user's favorited listings if showing favorites
-    favorited_listing_ids = set()
-    if show_favorite and user_info:
-        favorited_listing_ids = set(get_user_favorite_listings(user_info['uid'], user_info.get('idToken')))
-    
     col1, col2, col3 = st.columns([1, 3, 1])
     with col2:
         for idx, listing in enumerate(listings):
@@ -1371,24 +1369,7 @@ def render_listings(listings, show_edit=False, show_delete=False, show_favorite=
                 if is_editing:
                     render_edit_form(listing, listing_id, tab_prefix)
                 else:
-                    # Header row with title and favorite button
-                    if show_favorite:
-                        header_cols = st.columns([5, 1])
-                        with header_cols[0]:
-                            st.subheader(listing["title"])
-                        with header_cols[1]:
-                            is_favorited = listing_id in favorited_listing_ids
-                            star_icon = "⭐" if is_favorited else "☆"
-                            star_label = "Unfavorite" if is_favorited else "Favorite"
-                            if st.button(star_icon, key=f"fav_{tab_prefix}_{listing_id}_{idx}", help=star_label, use_container_width=True):
-                                try:
-                                    toggle_favorite_listing(user_info['uid'], listing_id, user_info.get('idToken'))
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"Failed to update favorite: {e}")
-                    else:
-                        st.subheader(listing["title"])
-                    
+                    st.subheader(listing["title"])
                     st.write(f"Posted by {listing['pi']} on {listing['date_posted']}")
                     st.write(f"**Additional Collaborators:** {listing['team']}")
                     st.write(f"**Department/Lab:** {listing['department']}")
@@ -1455,9 +1436,7 @@ def main():
     if user_info['role'] in ("faculty", "admin"):
         tab1, tab2, tab3 = st.tabs(["Browse Listings", "Create Listing", "My Listings"])
     else:
-        # Students see Browse and My Listings (for favorites)
-        tab1, tab3 = st.tabs(["Browse Listings", "My Listings"])
-        tab2 = None  # No Create Listings tab for students
+        tab1, = st.tabs(["Browse Listings"])
 
     # Browse Listings
     with tab1:
@@ -1606,34 +1585,8 @@ def main():
                             except Exception as e:
                                 st.error(f"Failed to create listing: {e}")
 
-    # My Listings (all users)
-    with tab3:
-        if user_info['role'] == "student":
-            st.header("My Favorite Listings")
-            
-            # Get favorited listing IDs
-            favorited_ids = get_user_favorite_listings(user_info['uid'], user_info.get('idToken'))
-            
-            if favorited_ids:
-                # Get all listings and filter to favorites
-                all_listings = get_all_listings_from_firebase()
-                favorite_listings = [l for l in all_listings if l.get("listing_id") in favorited_ids]
-                
-                if favorite_listings:
-                    render_listings(
-                        favorite_listings[::-1],
-                        show_edit=False,
-                        show_delete=False,
-                        show_favorite=True,
-                        user_info=user_info,
-                        tab_prefix="favorites"
-                    )
-                else:
-                    st.info("You haven't favorited any listings yet. Click the ☆ icon on listings in the Browse tab to save them here!")
-            else:
-                st.info("You haven't favorited any listings yet. Click the ☆ icon on listings in the Browse tab to save them here!")
-        
-        else:  # Faculty and admin see their created listings
+        # My Listings
+        with tab3:
             st.header("My Listings")
             
             # Both admins and faculty see only their own listings here
