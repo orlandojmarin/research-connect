@@ -7,7 +7,7 @@
 import streamlit as st
 from datetime import datetime
 from utils.auth_utils import (
-    auth, db, sanitize_email, is_allowed_sc_su_email,
+    db, sanitize_email, is_allowed_sc_su_email,
     strong_password, friendly_firebase_error,
     create_account, sign_in, logout, go,
     check_email_verified, resend_verification_email,
@@ -484,8 +484,9 @@ def render_login():
             try:
                 uid, token, email_verified = sign_in(email, password)
                 
-                # Get user profile
-                profile = db.child("users").child(uid).get().val() or {}
+                # Get user profile using Firebase Admin SDK syntax
+                user_ref = db.child("users").child(uid)
+                profile = user_ref.get() or {}
                 
                 # Store in session
                 st.session_state.user = {
@@ -501,6 +502,21 @@ def render_login():
                 
             except Exception as e:
                 st.error(friendly_firebase_error(e))
+
+                        # try:
+            #     uid, token, email_verified = sign_in(email, password)
+                
+            #     # Get user profile
+            #     profile = db.child("users").child(uid).get().val() or {}
+                
+            #     # Store in session
+            #     st.session_state.user = {
+            #         "uid": uid,
+            #         "email": email,
+            #         "idToken": token,
+            #         "role": profile.get("role", "student"),
+            #         "email_verified": email_verified
+            #     }
 
 def render_verify_email():
     """Render the email verification page."""
