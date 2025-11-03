@@ -21,19 +21,18 @@ def save_listing_to_firebase(listing_data):
     except Exception as e:
         raise RuntimeError(f"Failed to save listing: {e}")
 
-def update_listing_in_firebase(listing_id, updated_data, id_token=None):
+def update_listing_in_firebase(listing_id, updated_data):
     """
     Update an existing listing in Firebase Realtime Database.
     
     Args:
         listing_id: The unique listing ID
         updated_data: Dictionary of fields to update
-        id_token: Firebase ID token for authentication (optional)
     """
     try:
-        db.child("listings").child(listing_id).update(updated_data)
+        listing_ref = db.child("listings").child(listing_id)
+        listing_ref.update(updated_data)
         return True
-        
     except Exception as e:
         raise RuntimeError(f"Failed to update listing {listing_id}: {e}")
     
@@ -73,18 +72,14 @@ def get_user_listings_from_firebase(uid):
         return []
 
 
-def delete_listing_from_firebase(listing_id, id_token=None):
+def delete_listing_from_firebase(listing_id):
     """
     Delete a listing from Firebase Realtime Database by its unique listing ID.
-    
-    Args:
-        listing_id: The unique listing ID
-        id_token: Firebase ID token for authentication (optional)
     """
     try:
-        db.child("listings").child(listing_id).remove()
+        listing_ref = db.child("listings").child(listing_id)
+        listing_ref.delete()  # Firebase Admin SDK uses .delete() not .remove()
         return True
-        
     except Exception as e:
         raise RuntimeError(f"Failed to delete listing {listing_id}: {e}")
 
@@ -117,5 +112,58 @@ def filter_listings(listings, hours_filter, compensation_filter, faculty_filter)
             filtered.append(listing)
 
     return filtered
+
+
+def toggle_favorite_listing(uid, listing_id):
+    """
+    Toggle a listing as favorite/unfavorite for a user using Firebase Admin SDK.
+    Stores favorites under users/{uid}/favorite_listings/{listing_id}
+    
+    Args:
+        uid: User's unique ID
+        listing_id: Listing's unique ID
+    
+    Returns:
+        bool: True if favorited, False if unfavorited
+    """
+    try:
+        # Check if already favorited
+        favorite_ref = db.child("users").child(uid).child("favorite_listings").child(listing_id)
+        current_value = favorite_ref.get()
+        
+        if current_value:
+            # Already favorited, so remove it
+            favorite_ref.delete()
+            return False
+        else:
+            # Not favorited, so add it
+            favorite_ref.set(True)
+            return True
+    except Exception as e:
+        raise RuntimeError(f"Failed to toggle favorite for listing {listing_id}: {e}")
+
+
+def get_user_favorite_listings(uid):
+    """
+    Get all listing IDs that a user has favorited using Firebase Admin SDK.
+    
+    Args:
+        uid: User's unique ID
+    
+    Returns:
+        list: List of listing IDs that are favorited
+    """
+    try:
+        favorites_ref = db.child("users").child(uid).child("favorite_listings")
+        data = favorites_ref.get()
+        
+        if not data:
+            return []
+        
+        # Return list of listing IDs
+        return list(data.keys())
+    except Exception as e:
+        print(f"Error fetching favorite listings: {e}")
+        return []
 
 #-----END OF FILE-----
