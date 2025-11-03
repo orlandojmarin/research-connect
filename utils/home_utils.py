@@ -93,3 +93,5 @@ def initialize_session_state():
     if "home_visited" not in st.session_state:
         st.session_state.home_visited = True
         st.session_state.visit_time = datetime.datetime.now()
+
+#-----END OF FILE-----
