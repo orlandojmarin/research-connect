@@ -194,3 +194,5 @@ def get_resource_usage_stats():
         "most_popular": most_popular,
         "unique_resources": len(resource_counts)
     }
+
+#-----END OF FILE-----
