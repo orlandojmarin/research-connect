@@ -503,21 +503,6 @@ def render_login():
             except Exception as e:
                 st.error(friendly_firebase_error(e))
 
-                        # try:
-            #     uid, token, email_verified = sign_in(email, password)
-                
-            #     # Get user profile
-            #     profile = db.child("users").child(uid).get().val() or {}
-                
-            #     # Store in session
-            #     st.session_state.user = {
-            #         "uid": uid,
-            #         "email": email,
-            #         "idToken": token,
-            #         "role": profile.get("role", "student"),
-            #         "email_verified": email_verified
-            #     }
-
 def render_verify_email():
     """Render the email verification page."""
     st.title("Verify Your Email 📧")
