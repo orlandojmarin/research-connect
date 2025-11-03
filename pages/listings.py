@@ -9,7 +9,9 @@ from utils.listings_utils import (
     get_all_listings_from_firebase,
     get_user_listings_from_firebase,
     delete_listing_from_firebase,
-    update_listing_in_firebase
+    update_listing_in_firebase,
+    toggle_favorite_listing,
+    get_user_favorite_listings
 )
 from utils.profile_utils import get_user_profile
 from utils.general_utils import (
@@ -211,16 +213,22 @@ def render_edit_form(listing, listing_id, form_key_prefix):
                 except Exception as e:
                     st.error(f"Failed to update listing: {e}")
 
-def render_listings(listings, show_edit=False, show_delete=False, user_info=None, tab_prefix="browse"):
+def render_listings(listings, show_edit=False, show_delete=False, show_favorite=False, user_info=None, tab_prefix="browse"):
     """Display a list of research opportunity listings in a structured and readable format.
     
     Args:
         listings: List of listing dictionaries to display
         show_edit: Whether to show edit buttons
         show_delete: Whether to show delete buttons (admin only in Browse tab)
+        show_favorite: Whether to show favorite/star button
         user_info: Current user information for permission checks
         tab_prefix: Prefix for session state keys to avoid conflicts between tabs
     """
+    # Get user's favorited listings if showing favorites
+    favorited_listing_ids = set()
+    if show_favorite and user_info:
+        favorited_listing_ids = set(get_user_favorite_listings(user_info['uid']))
+    
     col1, col2, col3 = st.columns([1, 3, 1])
     with col2:
         for idx, listing in enumerate(listings):
@@ -235,7 +243,24 @@ def render_listings(listings, show_edit=False, show_delete=False, user_info=None
                 if is_editing:
                     render_edit_form(listing, listing_id, tab_prefix)
                 else:
-                    st.subheader(listing["title"])
+                    # Header row with title and favorite button
+                    if show_favorite:
+                        header_cols = st.columns([5, 1])
+                        with header_cols[0]:
+                            st.subheader(listing["title"])
+                        with header_cols[1]:
+                            is_favorited = listing_id in favorited_listing_ids
+                            star_icon = "⭐" if is_favorited else "☆"
+                            star_label = "Unfavorite" if is_favorited else "Favorite"
+                            if st.button(star_icon, key=f"fav_{tab_prefix}_{listing_id}_{idx}", help=star_label, use_container_width=True):
+                                try:
+                                    toggle_favorite_listing(user_info['uid'], listing_id)
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Failed to update favorite: {e}")
+                    else:
+                        st.subheader(listing["title"])
+                    
                     st.write(f"Posted by {listing['pi']} on {listing['date_posted']}")
                     st.write(f"**Additional Collaborators:** {listing['team']}")
                     st.write(f"**Department/Lab:** {listing['department']}")
@@ -298,10 +323,13 @@ def main():
     """Main entry point for the Research Opportunities page."""
     st.title("Research Opportunities 🔍")
 
+    # Show tabs based on role
     if user_info['role'] in ("faculty", "admin"):
         tab1, tab2, tab3 = st.tabs(["Browse Listings", "Create Listing", "My Listings"])
     else:
-        tab1, = st.tabs(["Browse Listings"])
+        # Students see Browse and My Listings (for favorites)
+        tab1, tab3 = st.tabs(["Browse Listings", "My Listings"])
+        tab2 = None  # No create tab for students
 
     # Browse Listings
     with tab1:
@@ -314,19 +342,20 @@ def main():
             st.info("👑 **Admin View:** You can edit or delete any listing from this tab.")
         
         if filtered_listings:
-            # Pass show_edit and show_delete=True only for admins
+            # Students see favorite button, admins see edit/delete
             render_listings(
                 filtered_listings, 
                 show_edit=(user_info['role'] == "admin"),
-                show_delete=(user_info['role'] == "admin"), 
+                show_delete=(user_info['role'] == "admin"),
+                show_favorite=(user_info['role'] == "student"),
                 user_info=user_info,
                 tab_prefix="browse"
             )
         else:
             st.info("No listings match your filters.")
 
-    # Create Listing
-    if user_info['role'] in ("faculty", "admin"):
+    # Create Listing (faculty/admin only)
+    if user_info['role'] in ("faculty", "admin") and tab2 is not None:
         with tab2:
             st.header("Create a New Research Listing")
 
@@ -449,8 +478,34 @@ def main():
                             except Exception as e:
                                 st.error(f"Failed to create listing: {e}")
 
-        # My Listings
-        with tab3:
+    # My Listings (all users)
+    with tab3:
+        if user_info['role'] == "student":
+            st.header("My Favorite Listings")
+            
+            # Get favorited listing IDs
+            favorited_ids = get_user_favorite_listings(user_info['uid'])
+            
+            if favorited_ids:
+                # Get all listings and filter to favorites
+                all_listings = get_all_listings_from_firebase()
+                favorite_listings = [l for l in all_listings if l.get("listing_id") in favorited_ids]
+                
+                if favorite_listings:
+                    render_listings(
+                        favorite_listings[::-1],
+                        show_edit=False,
+                        show_delete=False,
+                        show_favorite=True,
+                        user_info=user_info,
+                        tab_prefix="favorites"
+                    )
+                else:
+                    st.info("You haven't favorited any listings yet. Click the ☆ icon on listings in the Browse tab to save them here!")
+            else:
+                st.info("You haven't favorited any listings yet. Click the ☆ icon on listings in the Browse tab to save them here!")
+        
+        else:  # Faculty and admin see their created listings
             st.header("My Listings")
             
             # Both admins and faculty see only their own listings here
