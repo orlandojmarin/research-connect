@@ -729,71 +729,97 @@ def handle_verify_email_action(oob_code: str):
 
 def create_account(email: str, password: str, first_name: str, last_name: str):
     """Create a new Firebase user, send verification email, and store their profile."""
-    # Create user account using REST API
-    api_key = firebaseConfig["apiKey"]
-    url = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={api_key}"
-    
-    payload = {
-        "email": email,
-        "password": password,
-        "returnSecureToken": True
-    }
-    
-    response = requests.post(url, json=payload, timeout=10)
-    response.raise_for_status()
-    
-    data = response.json()
-    uid = data["localId"]
-    id_token = data["idToken"]
+    try:
+        # Create user account using REST API
+        api_key = firebaseConfig["apiKey"]
+        url = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={api_key}"
+        
+        payload = {
+            "email": email,
+            "password": password,
+            "returnSecureToken": True
+        }
+        
+        response = requests.post(url, json=payload, timeout=10)
+        response.raise_for_status()
+        
+        data = response.json()
+        uid = data["localId"]
+        id_token = data["idToken"]
 
-    # Determine role based on email
-    admin_emails = (
-        "marino1@southernct.edu",
-        "engt1@southernct.edu",
-        "muneerb1@southernct.edu",
-        "hossainm3@southernct.edu"
-    )
+        # Determine role based on email
+        admin_emails = (
+            "marino1@southernct.edu",
+            "engt1@southernct.edu",
+            "muneerb1@southernct.edu",
+            "hossainm3@southernct.edu"
+        )
 
-    faculty_emails = (
-        "abdelraoufa1@southernct.edu",
-        "alseesis1@southernct.edu",
-        "antoniosi1@southernct.edu",
-        "elahia1@southernct.edu",
-        "islamm2@southernct.edu",
-        "kimc1@southernct.edu",
-        "lancorl1@southernct.edu",
-        "podnarh1@southernct.edu",
-        "seyedt1@southernct.edu",
-        "shetaa1@southernct.edu",
-        "upretya1@southernct.edu",
-        "wuh2@southernct.edu",
-        "yuw1@southernct.edu",
-        "pangy1@southernct.edu",
-        "lockwoodh1@southernct.edu",
-        "facultytest@southernct.edu"
-    )
+        faculty_emails = (
+            "abdelraoufa1@southernct.edu",
+            "alseesis1@southernct.edu",
+            "antoniosi1@southernct.edu",
+            "elahia1@southernct.edu",
+            "islamm2@southernct.edu",
+            "kimc1@southernct.edu",
+            "lancorl1@southernct.edu",
+            "podnarh1@southernct.edu",
+            "seyedt1@southernct.edu",
+            "shetaa1@southernct.edu",
+            "upretya1@southernct.edu",
+            "wuh2@southernct.edu",
+            "yuw1@southernct.edu",
+            "pangy1@southernct.edu",
+            "lockwoodh1@southernct.edu",
+            "facultytest@southernct.edu"
+        )
 
-    if email.lower() in admin_emails:
-        role = "admin"
-    elif email.lower() in faculty_emails:
-        role = "faculty"
-    else:
-        role = "student"
+        if email.lower() in admin_emails:
+            role = "admin"
+        elif email.lower() in faculty_emails:
+            role = "faculty"
+        else:
+            role = "student"
 
-    # Save basic profile in DB
-    user_ref = db.child("users").child(uid)
-    user_ref.set({
-        "email": email,
-        "name": f"{first_name} {last_name}".strip(),
-        "role": role,
-        "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "email_verified": False  # Important: Start as False
-    })
+        # CRITICAL: Save profile with email_verified EXPLICITLY set to False
+        user_ref = db.child("users").child(uid)
+        user_ref.set({
+            "email": email,
+            "name": f"{first_name} {last_name}".strip(),
+            "role": role,
+            "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "email_verified": False  # MUST be False initially
+        })
+        
+        # CRITICAL: Use Admin SDK to ensure Firebase Auth also has email_verified = False
+        try:
+            admin_auth.update_user(
+                uid,
+                email_verified=False  # Force it to False in Auth system too
+            )
+        except Exception as admin_error:
+            print(f"Warning: Could not update email_verified via Admin SDK: {admin_error}")
 
-    # Send verification email
-    send_verification_email(id_token)
+        # Send verification email (this should NOT change email_verified status)
+        verification_sent = send_verification_email(id_token)
+        
+        if not verification_sent:
+            print(f"Warning: Verification email failed to send for {email}")
+            # Don't fail account creation if email fails - user can resend later
+        
+        # Final double-check: Ensure email_verified is still False
+        user_ref.update({"email_verified": False})
 
-    return uid, id_token
+        return uid, id_token
+        
+    except HTTPError as http_err:
+        # Re-raise HTTP errors with proper error handling
+        print(f"HTTP Error in create_account: {http_err}")
+        raise
+    except Exception as e:
+        # Log unexpected errors and re-raise
+        print(f"Unexpected error in create_account: {e}")
+        raise
 
 # def sign_in(email: str, password: str):
 #     """
