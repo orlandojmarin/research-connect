@@ -11,7 +11,7 @@ from utils.auth_utils import (
     strong_password, friendly_firebase_error,
     create_account, sign_in, logout, go,
     check_email_verified, resend_verification_email,
-    handle_verify_email_action
+    handle_verify_email_action, complete_email_verification
 )
 from utils.home_utils import (
     get_quick_actions, get_feature_descriptions,
@@ -201,46 +201,160 @@ def auth_gate():
         render_theme_tip()
 
 # ----- EMAIL VERIFICATION HANDLER -----
+# def render_email_verification_handler(oob_code: str):
+#     """Handle email verification when user clicks link in email"""
+    
+#     st.title("Email Verification ✉️")
+    
+#     with st.spinner("Verifying your email..."):
+#         success, message, email = handle_verify_email_action(oob_code)
+    
+#     if success:
+#         # SUCCESS - Automatically redirect to login page
+#         st.success(f"✅ {message}")
+#         st.balloons()
+        
+#         # Show brief confirmation message
+#         st.info("🎉 **Your email has been successfully verified!**\n\n"
+#                 "Redirecting you to the login page...")
+        
+#         # CRITICAL FIX: Clear query params FIRST, then redirect
+#         # This prevents the verification handler from running again
+#         st.query_params.clear()
+#         st.session_state.user = None
+#         st.session_state.page = "login"
+        
+#         # Add a small delay so users can see the success message
+#         import time
+#         time.sleep(2)
+#         st.rerun()
+            
+#     else:
+#         # FAILURE - Handle different error scenarios
+#         st.error("❌ Email Verification Failed")
+        
+#         # Provide context-specific guidance based on the error
+#         if "already been used" in message.lower() or "invalid" in message.lower():
+#             st.warning("**This verification link has already been used or is invalid.**\n\n"
+#                       "Your email may already be verified! Try logging in with your credentials.")
+            
+#             # Direct to login for already-verified users
+#             if st.button("🔑 Go to Login", width="stretch", type="primary"):
+#                 # CRITICAL FIX: Clear query params FIRST
+#                 st.query_params.clear()
+#                 st.session_state.user = None
+#                 st.session_state.page = "login"
+#                 st.rerun()
+                
+#         elif "expired" in message.lower():
+#             st.warning("**This verification link has expired.**\n\n"
+#                       "Verification links are valid for 24 hours.\n\n"
+#                       "**What to do next:**\n"
+#                       "1. Go to the login page\n"
+#                       "2. Enter your credentials\n"
+#                       "3. You'll be prompted to request a new verification email if needed")
+            
+#             col1, col2 = st.columns(2)
+#             with col1:
+#                 if st.button("🔑 Go to Login", width="stretch", type="primary"):
+#                     # CRITICAL FIX: Clear query params FIRST
+#                     st.query_params.clear()
+#                     st.session_state.user = None
+#                     st.session_state.page = "login"
+#                     st.rerun()
+#             with col2:
+#                 if st.button("✨ Create New Account", width="stretch"):
+#                     # CRITICAL FIX: Clear query params FIRST
+#                     st.query_params.clear()
+#                     st.session_state.user = None
+#                     st.session_state.page = "signup"
+#                     st.rerun()
+#         else:
+#             # Generic error - show both options
+#             st.warning("**Unable to verify your email at this time.**\n\n"
+#                       f"Error details: {message}\n\n"
+#                       "**What to do next:**\n"
+#                       "- Try logging in (you may already be verified)\n"
+#                       "- If you can't log in, request a new verification email")
+            
+#             col1, col2 = st.columns(2)
+#             with col1:
+#                 if st.button("🔑 Go to Login", width="stretch", type="primary"):
+#                     # CRITICAL FIX: Clear query params FIRST
+#                     st.query_params.clear()
+#                     st.session_state.user = None
+#                     st.session_state.page = "login"
+#                     st.rerun()
+#             with col2:
+#                 if st.button("✨ Create New Account", width="stretch"):
+#                     # CRITICAL FIX: Clear query params FIRST
+#                     st.query_params.clear()
+#                     st.session_state.user = None
+#                     st.session_state.page = "signup"
+#                     st.rerun()
+
 def render_email_verification_handler(oob_code: str):
-    """Handle email verification when user clicks link in email"""
+    """
+    Handle email verification with MANUAL confirmation step.
+    Users must click a button to complete verification.
+    """
     
     st.title("Email Verification ✉️")
     
-    with st.spinner("Verifying your email..."):
-        success, message, email = handle_verify_email_action(oob_code)
+    # STEP 1: Validate the link
+    with st.spinner("Validating your verification link..."):
+        success, message, email, uid = handle_verify_email_action(oob_code)
     
     if success:
-        # SUCCESS - Automatically redirect to login page
-        st.success(f"✅ {message}")
-        st.balloons()
+        # Link is VALID - Show confirmation screen
+        st.success("✅ Verification Link Validated!")
         
-        # Show brief confirmation message
-        st.info("🎉 **Your email has been successfully verified!**\n\n"
-                "Redirecting you to the login page...")
+        st.info(f"📧 **Email:** {email}\n\n"
+                "**One more step to complete your verification:**")
         
-        # CRITICAL FIX: Clear query params FIRST, then redirect
-        # This prevents the verification handler from running again
-        st.query_params.clear()
-        st.session_state.user = None
-        st.session_state.page = "login"
+        st.warning("⚠️ **Important:** Click the button below to finalize your email verification. "
+                   "Until you click this button, you will not be able to log in.")
         
-        # Add a small delay so users can see the success message
-        import time
-        time.sleep(2)
-        st.rerun()
+        # Import complete_email_verification here to avoid circular imports
+        from utils.auth_utils import complete_email_verification
+        
+        # Show the confirmation button
+        if st.button("✅ Confirm My Email Verification", type="primary", use_container_width=True):
+            with st.spinner("Completing verification..."):
+                verify_success, verify_message = complete_email_verification(uid, oob_code)
             
+            if verify_success:
+                st.success(f"🎉 {verify_message}")
+                st.balloons()
+                
+                st.info("**Your email has been successfully verified!**\n\n"
+                        "Redirecting you to the login page...")
+                
+                # Clear query params and redirect
+                st.query_params.clear()
+                st.session_state.user = None
+                st.session_state.page = "login"
+                
+                import time
+                time.sleep(2)
+                st.rerun()
+            else:
+                st.error(f"❌ {verify_message}")
+                st.error("Please try again or contact support if the problem persists.")
+        
+        # Also provide a manual login option
+        st.divider()
+        st.caption("Having trouble? You can also go directly to the login page after clicking confirm above.")
+        
     else:
-        # FAILURE - Handle different error scenarios
+        # Link is INVALID or EXPIRED
         st.error("❌ Email Verification Failed")
         
-        # Provide context-specific guidance based on the error
         if "already been used" in message.lower() or "invalid" in message.lower():
             st.warning("**This verification link has already been used or is invalid.**\n\n"
                       "Your email may already be verified! Try logging in with your credentials.")
             
-            # Direct to login for already-verified users
             if st.button("🔑 Go to Login", width="stretch", type="primary"):
-                # CRITICAL FIX: Clear query params FIRST
                 st.query_params.clear()
                 st.session_state.user = None
                 st.session_state.page = "login"
@@ -252,25 +366,22 @@ def render_email_verification_handler(oob_code: str):
                       "**What to do next:**\n"
                       "1. Go to the login page\n"
                       "2. Enter your credentials\n"
-                      "3. You'll be prompted to request a new verification email if needed")
+                      "3. Request a new verification email")
             
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("🔑 Go to Login", width="stretch", type="primary"):
-                    # CRITICAL FIX: Clear query params FIRST
                     st.query_params.clear()
                     st.session_state.user = None
                     st.session_state.page = "login"
                     st.rerun()
             with col2:
                 if st.button("✨ Create New Account", width="stretch"):
-                    # CRITICAL FIX: Clear query params FIRST
                     st.query_params.clear()
                     st.session_state.user = None
                     st.session_state.page = "signup"
                     st.rerun()
         else:
-            # Generic error - show both options
             st.warning("**Unable to verify your email at this time.**\n\n"
                       f"Error details: {message}\n\n"
                       "**What to do next:**\n"
@@ -280,14 +391,12 @@ def render_email_verification_handler(oob_code: str):
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("🔑 Go to Login", width="stretch", type="primary"):
-                    # CRITICAL FIX: Clear query params FIRST
                     st.query_params.clear()
                     st.session_state.user = None
                     st.session_state.page = "login"
                     st.rerun()
             with col2:
                 if st.button("✨ Create New Account", width="stretch"):
-                    # CRITICAL FIX: Clear query params FIRST
                     st.query_params.clear()
                     st.session_state.user = None
                     st.session_state.page = "signup"
