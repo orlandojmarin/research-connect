@@ -3,6 +3,7 @@
 # Updated with email verification and custom action handler
 # Streamlit Documentation: https://docs.streamlit.io/get-started 
 # run the program with streamlit run home.py
+# firebase action URLs: http://localhost:8501 or https://researchconnect.streamlit.app
 
 import streamlit as st
 from datetime import datetime
@@ -11,7 +12,7 @@ from utils.auth_utils import (
     strong_password, friendly_firebase_error,
     create_account, sign_in, logout, go,
     check_email_verified, resend_verification_email,
-    handle_verify_email_action, complete_email_verification
+    handle_verify_email_action
 )
 from utils.home_utils import (
     get_quick_actions, get_feature_descriptions,
@@ -201,160 +202,46 @@ def auth_gate():
         render_theme_tip()
 
 # ----- EMAIL VERIFICATION HANDLER -----
-# def render_email_verification_handler(oob_code: str):
-#     """Handle email verification when user clicks link in email"""
-    
-#     st.title("Email Verification ✉️")
-    
-#     with st.spinner("Verifying your email..."):
-#         success, message, email = handle_verify_email_action(oob_code)
-    
-#     if success:
-#         # SUCCESS - Automatically redirect to login page
-#         st.success(f"✅ {message}")
-#         st.balloons()
-        
-#         # Show brief confirmation message
-#         st.info("🎉 **Your email has been successfully verified!**\n\n"
-#                 "Redirecting you to the login page...")
-        
-#         # CRITICAL FIX: Clear query params FIRST, then redirect
-#         # This prevents the verification handler from running again
-#         st.query_params.clear()
-#         st.session_state.user = None
-#         st.session_state.page = "login"
-        
-#         # Add a small delay so users can see the success message
-#         import time
-#         time.sleep(2)
-#         st.rerun()
-            
-#     else:
-#         # FAILURE - Handle different error scenarios
-#         st.error("❌ Email Verification Failed")
-        
-#         # Provide context-specific guidance based on the error
-#         if "already been used" in message.lower() or "invalid" in message.lower():
-#             st.warning("**This verification link has already been used or is invalid.**\n\n"
-#                       "Your email may already be verified! Try logging in with your credentials.")
-            
-#             # Direct to login for already-verified users
-#             if st.button("🔑 Go to Login", width="stretch", type="primary"):
-#                 # CRITICAL FIX: Clear query params FIRST
-#                 st.query_params.clear()
-#                 st.session_state.user = None
-#                 st.session_state.page = "login"
-#                 st.rerun()
-                
-#         elif "expired" in message.lower():
-#             st.warning("**This verification link has expired.**\n\n"
-#                       "Verification links are valid for 24 hours.\n\n"
-#                       "**What to do next:**\n"
-#                       "1. Go to the login page\n"
-#                       "2. Enter your credentials\n"
-#                       "3. You'll be prompted to request a new verification email if needed")
-            
-#             col1, col2 = st.columns(2)
-#             with col1:
-#                 if st.button("🔑 Go to Login", width="stretch", type="primary"):
-#                     # CRITICAL FIX: Clear query params FIRST
-#                     st.query_params.clear()
-#                     st.session_state.user = None
-#                     st.session_state.page = "login"
-#                     st.rerun()
-#             with col2:
-#                 if st.button("✨ Create New Account", width="stretch"):
-#                     # CRITICAL FIX: Clear query params FIRST
-#                     st.query_params.clear()
-#                     st.session_state.user = None
-#                     st.session_state.page = "signup"
-#                     st.rerun()
-#         else:
-#             # Generic error - show both options
-#             st.warning("**Unable to verify your email at this time.**\n\n"
-#                       f"Error details: {message}\n\n"
-#                       "**What to do next:**\n"
-#                       "- Try logging in (you may already be verified)\n"
-#                       "- If you can't log in, request a new verification email")
-            
-#             col1, col2 = st.columns(2)
-#             with col1:
-#                 if st.button("🔑 Go to Login", width="stretch", type="primary"):
-#                     # CRITICAL FIX: Clear query params FIRST
-#                     st.query_params.clear()
-#                     st.session_state.user = None
-#                     st.session_state.page = "login"
-#                     st.rerun()
-#             with col2:
-#                 if st.button("✨ Create New Account", width="stretch"):
-#                     # CRITICAL FIX: Clear query params FIRST
-#                     st.query_params.clear()
-#                     st.session_state.user = None
-#                     st.session_state.page = "signup"
-#                     st.rerun()
-
 def render_email_verification_handler(oob_code: str):
-    """
-    Handle email verification with MANUAL confirmation step.
-    Users must click a button to complete verification.
-    """
+    """Handle email verification when user clicks link in email"""
     
     st.title("Email Verification ✉️")
     
-    # STEP 1: Validate the link
-    with st.spinner("Validating your verification link..."):
-        success, message, email, uid = handle_verify_email_action(oob_code)
+    with st.spinner("Verifying your email..."):
+        success, message, email = handle_verify_email_action(oob_code)
     
     if success:
-        # Link is VALID - Show confirmation screen
-        st.success("✅ Verification Link Validated!")
+        # SUCCESS - Automatically redirect to login page
+        st.success(f"✅ {message}")
+        st.balloons()
         
-        st.info(f"📧 **Email:** {email}\n\n"
-                "**One more step to complete your verification:**")
+        # Show brief confirmation message
+        st.info("🎉 **Your email has been successfully verified!**\n\n"
+                "Redirecting you to the login page...")
         
-        st.warning("⚠️ **Important:** Click the button below to finalize your email verification. "
-                   "Until you click this button, you will not be able to log in.")
+        # CRITICAL FIX: Clear query params FIRST, then redirect
+        # This prevents the verification handler from running again
+        st.query_params.clear()
+        st.session_state.user = None
+        st.session_state.page = "login"
         
-        # Import complete_email_verification here to avoid circular imports
-        from utils.auth_utils import complete_email_verification
-        
-        # Show the confirmation button
-        if st.button("✅ Confirm My Email Verification", type="primary", use_container_width=True):
-            with st.spinner("Completing verification..."):
-                verify_success, verify_message = complete_email_verification(uid, oob_code)
+        # Add a small delay so users can see the success message
+        import time
+        time.sleep(2)
+        st.rerun()
             
-            if verify_success:
-                st.success(f"🎉 {verify_message}")
-                st.balloons()
-                
-                st.info("**Your email has been successfully verified!**\n\n"
-                        "Redirecting you to the login page...")
-                
-                # Clear query params and redirect
-                st.query_params.clear()
-                st.session_state.user = None
-                st.session_state.page = "login"
-                
-                import time
-                time.sleep(2)
-                st.rerun()
-            else:
-                st.error(f"❌ {verify_message}")
-                st.error("Please try again or contact support if the problem persists.")
-        
-        # Also provide a manual login option
-        st.divider()
-        st.caption("Having trouble? You can also go directly to the login page after clicking confirm above.")
-        
     else:
-        # Link is INVALID or EXPIRED
+        # FAILURE - Handle different error scenarios
         st.error("❌ Email Verification Failed")
         
+        # Provide context-specific guidance based on the error
         if "already been used" in message.lower() or "invalid" in message.lower():
             st.warning("**This verification link has already been used or is invalid.**\n\n"
                       "Your email may already be verified! Try logging in with your credentials.")
             
+            # Direct to login for already-verified users
             if st.button("🔑 Go to Login", width="stretch", type="primary"):
+                # CRITICAL FIX: Clear query params FIRST
                 st.query_params.clear()
                 st.session_state.user = None
                 st.session_state.page = "login"
@@ -366,22 +253,25 @@ def render_email_verification_handler(oob_code: str):
                       "**What to do next:**\n"
                       "1. Go to the login page\n"
                       "2. Enter your credentials\n"
-                      "3. Request a new verification email")
+                      "3. You'll be prompted to request a new verification email if needed")
             
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("🔑 Go to Login", width="stretch", type="primary"):
+                    # CRITICAL FIX: Clear query params FIRST
                     st.query_params.clear()
                     st.session_state.user = None
                     st.session_state.page = "login"
                     st.rerun()
             with col2:
                 if st.button("✨ Create New Account", width="stretch"):
+                    # CRITICAL FIX: Clear query params FIRST
                     st.query_params.clear()
                     st.session_state.user = None
                     st.session_state.page = "signup"
                     st.rerun()
         else:
+            # Generic error - show both options
             st.warning("**Unable to verify your email at this time.**\n\n"
                       f"Error details: {message}\n\n"
                       "**What to do next:**\n"
@@ -391,12 +281,14 @@ def render_email_verification_handler(oob_code: str):
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("🔑 Go to Login", width="stretch", type="primary"):
+                    # CRITICAL FIX: Clear query params FIRST
                     st.query_params.clear()
                     st.session_state.user = None
                     st.session_state.page = "login"
                     st.rerun()
             with col2:
                 if st.button("✨ Create New Account", width="stretch"):
+                    # CRITICAL FIX: Clear query params FIRST
                     st.query_params.clear()
                     st.session_state.user = None
                     st.session_state.page = "signup"
@@ -559,59 +451,6 @@ def render_signup():
                 "**Didn't receive it?** Wait a few minutes, then check your spam folder. "
                 "You can also request a new verification email after attempting to log in.")
 
-# def render_login():
-#     """Render the login page with form inputs and authentication handling."""
-#     st.title("Log In")
-#     if st.button("← Back"):
-#         go("landing")
-#         st.rerun()
-
-#     with st.form("login_form"):
-#         email_raw = st.text_input("SCSU email address", placeholder="yourname@southernct.edu")
-#         password = st.text_input("Password", type="password")
-#         submitted = st.form_submit_button("Log In")
-
-#     if submitted:
-#         # Collect validation errors
-#         errors = []
-        
-#         email = sanitize_email(email_raw)
-        
-#         if not email:
-#             errors.append("❌ Please enter your email address.")
-#         elif not is_allowed_sc_su_email(email):
-#             errors.append("❌ Please use your SCSU email address (@southernct.edu).")
-        
-#         if not password:
-#             errors.append("❌ Please enter your password.")
-        
-#         # Display validation errors or attempt login
-#         if errors:
-#             for error in errors:
-#                 st.error(error)
-#         else:
-#             try:
-#                 uid, token, email_verified = sign_in(email, password)
-                
-#                 # Get user profile using Firebase Admin SDK syntax
-#                 user_ref = db.child("users").child(uid)
-#                 profile = user_ref.get() or {}
-                
-#                 # Store in session
-#                 st.session_state.user = {
-#                     "uid": uid,
-#                     "email": email,
-#                     "idToken": token,
-#                     "role": profile.get("role", "student"),
-#                     "email_verified": email_verified
-#                 }
-                
-#                 go("home")
-#                 st.rerun()
-                
-#             except Exception as e:
-#                 st.error(friendly_firebase_error(e))
-
 def render_login():
     """Render the login page with form inputs and authentication handling."""
     st.title("Log In")
@@ -650,20 +489,16 @@ def render_login():
                 user_ref = db.child("users").child(uid)
                 profile = user_ref.get() or {}
                 
-                # CRITICAL: Store verification status in session FIRST
+                # Store in session
                 st.session_state.user = {
                     "uid": uid,
                     "email": email,
                     "idToken": token,
                     "role": profile.get("role", "student"),
-                    "email_verified": email_verified  # This is now guaranteed fresh
+                    "email_verified": email_verified
                 }
                 
-                # Log for debugging (remove in production)
-                print(f"Login attempt - UID: {uid}, Email Verified: {email_verified}")
-                
-                # CRITICAL: Don't redirect anywhere - let auth_gate handle routing
-                # This ensures verification check happens on every login
+                go("home")
                 st.rerun()
                 
             except Exception as e:
