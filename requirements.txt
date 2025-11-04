@@ -1,5 +1,12 @@
 pyrebase4
 streamlit
+<<<<<<< HEAD
 python-dotenv>=1.0.1
 google-cloud-discoveryengine>=0.12.0
 google-cloud-aiplatform>=1.66.0
+=======
+google-cloud-aiplatform
+python-dotenv
+firebase-admin
+requests
+>>>>>>> d979b21e897ff213bbbcd976fad2b145ec767d33

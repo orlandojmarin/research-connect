@@ -1,5 +1,7 @@
 # Sana update and renewed to work with RAG and firebase listings
 # ORLANDO
+# chatbot_utils.py
+
 """
 Chatbot utilities for ResearchConnect SCSU
 Handles chatbot functionality, response generation, and conversation management
@@ -8,10 +10,9 @@ import datetime
 import random
 import re
 import streamlit as st
-import os
-from dotenv import load_dotenv
 import vertexai
 from vertexai.generative_models import GenerativeModel
+<<<<<<< HEAD
 
 # ==========================================================
 # --- RAG + Firebase Imports (with SAFE ADAPTER) ---
@@ -63,6 +64,9 @@ except Exception:
 # Load environment variables and initialize Vertex AI
 # ==========================================================
 load_dotenv()
+=======
+from google.oauth2 import service_account
+>>>>>>> d979b21e897ff213bbbcd976fad2b145ec767d33
 
 @st.cache_resource
 def initialize_vertex_ai():
@@ -70,6 +74,7 @@ def initialize_vertex_ai():
     Initialize Vertex AI. Read from Streamlit secrets first, then .env.
     """
     try:
+<<<<<<< HEAD
         project_id = st.secrets.get("GCP_PROJECT_ID") or os.getenv("GCP_PROJECT_ID")
         region = (
             st.secrets.get("VERTEX_REGION")
@@ -81,6 +86,23 @@ def initialize_vertex_ai():
             return None
 
         vertexai.init(project=project_id, location=region)
+=======
+        # Get project ID from secrets
+        project_id = st.secrets["GCP_PROJECT_ID"]
+        
+        # Initialize credentials from secrets
+        credentials = service_account.Credentials.from_service_account_info(
+            st.secrets["gcp_service_account"]
+        )
+        
+        # Initialize Vertex AI with credentials
+        vertexai.init(
+            project=project_id, 
+            location="us-central1",
+            credentials=credentials
+        )
+        
+>>>>>>> d979b21e897ff213bbbcd976fad2b145ec767d33
         model = GenerativeModel("gemini-2.5-flash")
         print(f"Vertex AI initialized (project={project_id}, region={region})")
         return model

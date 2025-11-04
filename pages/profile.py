@@ -2,7 +2,7 @@
 # Profile page where users can view, edit, and delete their account
 
 import streamlit as st
-from utils.auth_utils import delete_self_account, go
+from utils.auth_utils import delete_self_account, go, db, firebaseConfig
 from utils.profile_utils import get_user_profile, delete_user_data, update_user_profile
 from utils.general_utils import (
     auth_gate, get_current_user, configure_page,
@@ -173,14 +173,25 @@ def render_danger_zone(uid, id_token):
                 else:
                     with st.spinner("Deleting account..."):
                         try:
-                            # Re-authenticate to get a fresh token
-                            from utils.auth_utils import auth
+                            # Re-authenticate to get a fresh token using REST API
+                            import requests
+                            
                             user = st.session_state.get("user")
                             email = user.get("email")
                             
-                            # Sign in again to get fresh token
-                            fresh_user = auth.sign_in_with_email_and_password(email, password)
-                            fresh_token = fresh_user["idToken"]
+                            # Sign in again to get fresh token using REST API
+                            api_key = firebaseConfig["apiKey"]
+                            url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}"
+                            payload = {
+                                "email": email,
+                                "password": password,
+                                "returnSecureToken": True
+                            }
+                            response = requests.post(url, json=payload, timeout=10)
+                            response.raise_for_status()
+                            
+                            data = response.json()
+                            fresh_token = data["idToken"]
                             
                             # Delete user data and account
                             delete_user_data(uid)
@@ -227,22 +238,50 @@ def main():
             if submit:
                 if first_name and last_name:
                     from datetime import datetime
-                    from utils.auth_utils import db
                     
                     # Determine role based on email
                     admin_emails = (
                         "marino1@southernct.edu",
                         "engt1@southernct.edu",
-                        "muneerb1@southernct.edu"
+                        "muneerb1@southernct.edu",
+                        "hossainm3@southernct.edu"
                     )
-                    role = "admin" if user_info['email'].lower() in admin_emails else "student"
                     
-                    # Recreate profile data
-                    db.child("users").child(user_info['uid']).set({
+                    faculty_emails = (
+                        "abdelraoufa1@southernct.edu",
+                        "alseesis1@southernct.edu",
+                        "antoniosi1@southernct.edu",
+                        "elahia1@southernct.edu",
+                        "islamm2@southernct.edu",
+                        "kimc1@southernct.edu",
+                        "lancorl1@southernct.edu",
+                        "podnarh1@southernct.edu",
+                        "seyedt1@southernct.edu",
+                        "shetaa1@southernct.edu",
+                        "upretya1@southernct.edu",
+                        "wuh2@southernct.edu",
+                        "yuw1@southernct.edu",
+                        "pangy1@southernct.edu",
+                        "lockwoodh1@southernct.edu",
+                        "facultytest@southernct.edu"
+                    )
+                    
+                    # Assign role based on email
+                    if user_info['email'].lower() in admin_emails:
+                        role = "admin"
+                    elif user_info['email'].lower() in faculty_emails:
+                        role = "faculty"
+                    else:
+                        role = "student"
+                    
+                    # Recreate profile data using Firebase Admin SDK syntax
+                    user_ref = db.child("users").child(user_info['uid'])
+                    user_ref.set({
                         "email": user_info['email'],
                         "name": f"{first_name} {last_name}".strip(),
                         "role": role,
                         "created_at": datetime.utcnow().isoformat() + "Z",
+                        "email_verified": True  # Assuming they're logged in, email is verified
                     })
                     
                     st.success("✅ Profile restored! Refreshing page...")
