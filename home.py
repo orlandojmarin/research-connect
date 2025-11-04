@@ -450,6 +450,59 @@ def render_signup():
                 "**Didn't receive it?** Wait a few minutes, then check your spam folder. "
                 "You can also request a new verification email after attempting to log in.")
 
+# def render_login():
+#     """Render the login page with form inputs and authentication handling."""
+#     st.title("Log In")
+#     if st.button("← Back"):
+#         go("landing")
+#         st.rerun()
+
+#     with st.form("login_form"):
+#         email_raw = st.text_input("SCSU email address", placeholder="yourname@southernct.edu")
+#         password = st.text_input("Password", type="password")
+#         submitted = st.form_submit_button("Log In")
+
+#     if submitted:
+#         # Collect validation errors
+#         errors = []
+        
+#         email = sanitize_email(email_raw)
+        
+#         if not email:
+#             errors.append("❌ Please enter your email address.")
+#         elif not is_allowed_sc_su_email(email):
+#             errors.append("❌ Please use your SCSU email address (@southernct.edu).")
+        
+#         if not password:
+#             errors.append("❌ Please enter your password.")
+        
+#         # Display validation errors or attempt login
+#         if errors:
+#             for error in errors:
+#                 st.error(error)
+#         else:
+#             try:
+#                 uid, token, email_verified = sign_in(email, password)
+                
+#                 # Get user profile using Firebase Admin SDK syntax
+#                 user_ref = db.child("users").child(uid)
+#                 profile = user_ref.get() or {}
+                
+#                 # Store in session
+#                 st.session_state.user = {
+#                     "uid": uid,
+#                     "email": email,
+#                     "idToken": token,
+#                     "role": profile.get("role", "student"),
+#                     "email_verified": email_verified
+#                 }
+                
+#                 go("home")
+#                 st.rerun()
+                
+#             except Exception as e:
+#                 st.error(friendly_firebase_error(e))
+
 def render_login():
     """Render the login page with form inputs and authentication handling."""
     st.title("Log In")
@@ -488,7 +541,7 @@ def render_login():
                 user_ref = db.child("users").child(uid)
                 profile = user_ref.get() or {}
                 
-                # Store in session
+                # Store in session with CORRECT verification status
                 st.session_state.user = {
                     "uid": uid,
                     "email": email,
@@ -497,8 +550,14 @@ def render_login():
                     "email_verified": email_verified
                 }
                 
-                go("home")
-                st.rerun()
+                # CRITICAL: Check if email is verified BEFORE allowing access
+                if not email_verified:
+                    # Don't redirect to home - let auth_gate handle it
+                    st.rerun()
+                else:
+                    # Email is verified - allow access
+                    go("home")
+                    st.rerun()
                 
             except Exception as e:
                 st.error(friendly_firebase_error(e))
