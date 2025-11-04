@@ -541,23 +541,21 @@ def render_login():
                 user_ref = db.child("users").child(uid)
                 profile = user_ref.get() or {}
                 
-                # Store in session with CORRECT verification status
+                # CRITICAL: Store verification status in session FIRST
                 st.session_state.user = {
                     "uid": uid,
                     "email": email,
                     "idToken": token,
                     "role": profile.get("role", "student"),
-                    "email_verified": email_verified
+                    "email_verified": email_verified  # This is now guaranteed fresh
                 }
                 
-                # CRITICAL: Check if email is verified BEFORE allowing access
-                if not email_verified:
-                    # Don't redirect to home - let auth_gate handle it
-                    st.rerun()
-                else:
-                    # Email is verified - allow access
-                    go("home")
-                    st.rerun()
+                # Log for debugging (remove in production)
+                print(f"Login attempt - UID: {uid}, Email Verified: {email_verified}")
+                
+                # CRITICAL: Don't redirect anywhere - let auth_gate handle routing
+                # This ensures verification check happens on every login
+                st.rerun()
                 
             except Exception as e:
                 st.error(friendly_firebase_error(e))
