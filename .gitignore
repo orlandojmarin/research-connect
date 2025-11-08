@@ -1,12 +1,13 @@
+# Environment and credentials
 .env
 gcp-credentials.json
-<<<<<<< HEAD
-__pycache__/
-.streamlit/secrets.toml
-=======
 
-*.toml
-!.streamlit/config.toml
+# Streamlit secrets
 .streamlit/secrets.toml
+!.streamlit/config.toml
+
+# Python cache
 __pycache__/
->>>>>>> d979b21e897ff213bbbcd976fad2b145ec767d33
+
+# TOML files (general ignore)
+*.toml

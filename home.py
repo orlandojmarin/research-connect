@@ -1,10 +1,6 @@
-# SANA (Authentication and all Functionality)
 # ORLANDO (UI) 
-<<<<<<< HEAD
-=======
 # SANA (Authentication Functionality)
 # Updated with email verification and custom action handler
->>>>>>> d979b21e897ff213bbbcd976fad2b145ec767d33
 # Streamlit Documentation: https://docs.streamlit.io/get-started 
 # run the program with streamlit run home.py
 
@@ -22,10 +18,7 @@ from utils.home_utils import (
     initialize_session_state
 )
 from utils.profile_utils import get_user_profile
-from utils.general_utils import render_sidebar_auth, render_theme_tip 
-
-from dotenv import load_dotenv
-load_dotenv()
+from utils.general_utils import render_sidebar_auth, render_theme_tip
 
 # ----- DYNAMIC PAGE CONFIG -----
 def configure_page():

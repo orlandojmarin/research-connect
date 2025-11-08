@@ -1,11 +1,11 @@
-#sana
-from utils.auth_utils import db
-import re  
-import json 
-
+# sana - updated to Firebase Admin SDK compatible version
+from firebase_admin import db as admin_db
+import re
+import json
 
 def get_all_listings():
-    listings = db.child("listings").get().val()
+    listings = admin_db.reference("listings").get()
+
     if not listings:
         return "No listings found."
 
@@ -35,9 +35,9 @@ def get_all_listings():
     
     return "\n\n".join(output)
 
-# --- Simple keyword search over listings (fallback, lightweight) ---
+# --- Simple keyword search ---
 def search_listings_by_keywords(query, max_results=5):
-    listings = db.child("listings").get().val()
+    listings = admin_db.reference("listings").get()
     if not listings:
         return []
 
@@ -50,20 +50,14 @@ def search_listings_by_keywords(query, max_results=5):
         if score > 0:
             results.append((score, key, data))
 
-    # sort by match relevance
     results.sort(reverse=True, key=lambda x: x[0])
 
-    # if no match found at all
     if not results:
         return None
 
     return [r[2] for r in results[:max_results]]
 
-
 def format_listings_brief(listings):
-    """
-    Make a short, readable block for the chatbot.
-    """
     out = []
     for L in listings:
         title = L.get("title", "Untitled")
@@ -73,6 +67,7 @@ def format_listings_brief(listings):
         hours = L.get("weekly_hours", "")
         start = L.get("start_date", "")
         skills = L.get("skills", "")
+
         out.append(
             f"- {title} | PI: {pi} | Dept: {dept} | Pay: {pay}"
             + (f" | Hours/Week: {hours}" if hours else "")
@@ -80,7 +75,6 @@ def format_listings_brief(listings):
             + (f" | Skills: {skills}" if skills else "")
         )
     return "\n".join(out) if out else "No matching listings found."
-
 
 if __name__ == "__main__":
     print(get_all_listings())
