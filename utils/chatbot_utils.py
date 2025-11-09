@@ -95,8 +95,20 @@ def initialize_vertex_ai():
 # Chat Session & Utilities
 # ==========================================================
 def initialize_chat_session():
+    """Initialize the chat session with a default greeting."""
     if "messages" not in st.session_state:
-        st.session_state.messages = []
+        st.session_state.messages = [
+            {
+                "role": "assistant",
+                "content": (
+                    "👋 Welcome! I’m **ResearchConnect**, the AI assistant here to help you navigate SCSU’s research world. 🔍📚\n\n"
+                    "Whether you’re looking for faculty projects, research opportunities, or department contacts, "
+                    "I’ll help you find what you need quickly and clearly. 💡\n\n"
+                    "What would you like to explore first?"
+                ),
+                "timestamp": datetime.datetime.now(),
+            }
+        ]
 
 def get_sidebar_info():
     return {
@@ -210,11 +222,21 @@ def _build_context(q: str) -> str:
         if not snippet:
             return ""
         # Make it sound friendly if it’s a general info query
-        if any(word in ql for word in ["ihub", "website", "center", "office", "department", "email", "contact", "phone"]):
-            return (
-                f"Here’s what I found about that:\n\n{snippet}\n\n"
-                "If you’d like, I can give just the contact info or the main description — which would you prefer?"
-            )
+        if any(word in ql for word in ["email", "contact", "phone", "number", "address"]):
+    # Only use text file snippet, do not let Gemini generate extra info
+            if snippet:
+                # Extract only lines with actual contact info from snippet
+                contact_lines = []
+                for line in snippet.splitlines():
+                    if re.search(r"(\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})", line) or "@" in line:
+                        contact_lines.append(line.strip())
+                if contact_lines:
+                    return "Here’s the official contact information I found:\n\n" + "\n".join(contact_lines)
+                else:
+                    return (
+                        "I checked the available data, but I couldn’t find any email or phone number. "
+                        "You might want to visit the department’s website directly."
+                    )
         return snippet
     except Exception:
         return ""
@@ -245,8 +267,7 @@ When showing research listings, speak like you're chatting — not listing data 
 Example:
 'Yes! I found a few research projects you might like. One is led by Dr. Tatiana Eng in the Computer Science department...'
 
-When explaining website or office info (like iHub), summarize clearly but sound helpful, not robotic.
-Keep responses under 180 words unless asked for more detail."""
+When explaining websites or offices info, summarize clearly but sound helpful, not robotic. Avoid focusing on one specific office unless asked (like Innovation Hub)."""
 
         # Include last few messages for flow
         history = st.session_state.messages[-6:]

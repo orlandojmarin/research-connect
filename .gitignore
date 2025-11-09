@@ -6,8 +6,22 @@ gcp-credentials.json
 .streamlit/secrets.toml
 !.streamlit/config.toml
 
-# Python cache
+# ==============================
+# Python cache and temporary files
+# ==============================
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
 
-# TOML files (general ignore)
+# ==============================
+# Logs and system files
+# ==============================
+*.log
+.DS_Store
+
+# ==============================
+# TOML and misc configs
+# ==============================
 *.toml
+!config.toml  # keep global config if needed
