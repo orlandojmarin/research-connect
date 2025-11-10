@@ -1,5 +1,7 @@
 streamlit
 google-cloud-aiplatform
+google-cloud-discoveryengine
+google-cloud-storage
 python-dotenv
 firebase-admin
 requests
