@@ -376,7 +376,7 @@ def render_admin_user_management():
                 with col1:
                     # Name with role badge
                     role = user.get('role', 'student')
-                    role_emoji = {"admin": "👑", "faculty": "👨‍🏫", "student": "🎓"}
+                    role_emoji = {"admin": "👑", "faculty": "🍎", "student": "🎓"}
                     role_color = {"admin": "red", "faculty": "blue", "student": "green"}
                     
                     st.subheader(user.get('name', 'Unknown'))
