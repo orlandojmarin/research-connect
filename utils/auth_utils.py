@@ -309,6 +309,139 @@ def handle_verify_email_action(oob_code: str):
 
 # ============================ PASSWORD RESET ============================
 
+def send_password_reset_email(email: str):
+    """
+    Send password reset email to user.
+    
+    Args:
+        email: User's email address
+    
+    Returns:
+        tuple: (success: bool, message: str)
+    """
+    try:
+        api_key = firebaseConfig["apiKey"]
+        url = f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={api_key}"
+        
+        payload = {
+            "requestType": "PASSWORD_RESET",
+            "email": email
+        }
+        
+        response = requests.post(url, json=payload, timeout=10)
+        response.raise_for_status()
+        
+        return True, "Password reset email sent! Please check your inbox."
+        
+    except HTTPError as e:
+        if e.response is not None:
+            try:
+                error_data = e.response.json()
+                error_message = error_data.get("error", {}).get("message", "")
+                
+                if "EMAIL_NOT_FOUND" in error_message:
+                    return False, "No account exists with this email address."
+                else:
+                    return False, friendly_firebase_error(e)
+            except:
+                pass
+        
+        return False, friendly_firebase_error(e)
+    
+    except Exception as e:
+        return False, f"Failed to send password reset email: {str(e)}"
+
+def handle_password_reset_action(oob_code: str, new_password: str, current_password_check: str = None):
+    """
+    Complete password reset using the code from reset email.
+    
+    Args:
+        oob_code: The action code from the password reset email URL
+        new_password: The new password to set
+        current_password_check: Optional current password to verify it's different
+    
+    Returns:
+        tuple: (success: bool, message: str, email: str or None)
+    """
+    try:
+        # Validate new password strength
+        is_strong, msg = strong_password(new_password)
+        if not is_strong:
+            return False, msg, None
+        
+        # First, verify the code and get the email (without resetting yet)
+        api_key = firebaseConfig["apiKey"]
+        
+        # Verify the reset code is valid and get user email
+        verify_url = f"https://identitytoolkit.googleapis.com/v1/accounts:resetPassword?key={api_key}"
+        
+        # First call without newPassword to verify code and get email
+        verify_payload = {
+            "oobCode": oob_code
+        }
+        
+        verify_response = requests.post(verify_url, json=verify_payload, timeout=10)
+        
+        # If code is valid, we get the email back
+        if verify_response.status_code == 200:
+            verify_data = verify_response.json()
+            email = verify_data.get("email", "")
+            
+            # Now try to sign in with the new password to check if it's the same as current
+            if email:
+                signin_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}"
+                signin_payload = {
+                    "email": email,
+                    "password": new_password,
+                    "returnSecureToken": True
+                }
+                
+                # Try signing in with the new password
+                try:
+                    signin_response = requests.post(signin_url, json=signin_payload, timeout=10)
+                    
+                    # If sign-in succeeds, the new password is the same as current password
+                    if signin_response.status_code == 200:
+                        return False, "Your new password cannot be the same as your current password. Please choose a different password.", email
+                except:
+                    # Sign-in failed, which means password is different - this is what we want
+                    pass
+            
+            # Password is different, proceed with reset
+            reset_payload = {
+                "oobCode": oob_code,
+                "newPassword": new_password
+            }
+            
+            reset_response = requests.post(verify_url, json=reset_payload, timeout=10)
+            reset_response.raise_for_status()
+            
+            return True, "Password reset successfully! You can now log in with your new password.", email
+        else:
+            # Handle verification errors
+            verify_response.raise_for_status()
+        
+    except HTTPError as e:
+        if e.response is not None:
+            try:
+                error_data = e.response.json()
+                error_message = error_data.get("error", {}).get("message", "")
+                
+                if "INVALID_OOB_CODE" in error_message:
+                    return False, "This password reset link is invalid or has already been used.", None
+                elif "EXPIRED_OOB_CODE" in error_message:
+                    return False, "This password reset link has expired. Please request a new one.", None
+                else:
+                    return False, "Unable to reset password. Please try again or request a new reset link.", None
+            except:
+                pass
+        
+        return False, "Unable to reset password. Please try again or request a new reset link.", None
+    
+    except Exception as e:
+        print(f"Error handling password reset: {e}")
+        return False, "An error occurred while resetting your password. Please try again.", None
+
 def change_password(email: str, current_password: str, new_password: str):
     """
     Change user's password after verifying current password.
