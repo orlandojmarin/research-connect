@@ -1,5 +1,6 @@
 # TATIANA
 # listings.py
+# create listing and edit listing: pay rate and start date fields updated
 
 import streamlit as st
 from datetime import datetime
@@ -94,12 +95,18 @@ def render_edit_form(listing, listing_id, form_key_prefix):
         
         openings = st.number_input("Number of Openings *", min_value=1, max_value=10, value=listing['openings'], step=1, key=f"edit_openings_{form_key_prefix}_{listing_id}")
         
-        # Parse start date
+        # Parse start date - if empty or invalid, default to today
         try:
             start_date_obj = datetime.strptime(listing['start_date'], "%B %d, %Y")
         except:
             start_date_obj = datetime.now()
+        
         start_date = st.date_input("Start Date *", value=start_date_obj, key=f"edit_start_date_{form_key_prefix}_{listing_id}")
+        
+        # If start_date is None (user cleared it), use today's date
+        if start_date is None:
+            start_date = datetime.now().date()
+        
         st.caption(f"Will display as: {start_date.strftime('%B %d, %Y')}")
         
         duration_options = ["1 semester", "2 semesters", "More than 2 semesters"]
@@ -115,8 +122,8 @@ def render_edit_form(listing, listing_id, form_key_prefix):
         if compensation_type == "Paid":
             pay_rate = st.number_input(
                 "Hourly Pay Rate ($) *",
-                min_value=0.0,
-                value=float(listing.get('pay_rate', 0)),
+                min_value=16.35,
+                value=max(16.35, float(listing.get('pay_rate', 16.35))),
                 step=0.01,
                 format="%.2f",
                 key=f"edit_pay_rate_{form_key_prefix}_{listing_id}"
@@ -173,7 +180,7 @@ def render_edit_form(listing, listing_id, form_key_prefix):
                 errors.append("Number of Hours per Week")
             if not compensation_type:
                 errors.append("Compensation Type")
-            if compensation_type == "Paid" and (pay_rate is None or pay_rate <= 0):
+            if compensation_type == "Paid" and (pay_rate is None or pay_rate < 16.35):
                 errors.append("Hourly Pay Rate")
             if not skills:
                 errors.append("Skills Required")
@@ -268,7 +275,13 @@ def render_listings(listings, show_edit=False, show_delete=False, show_favorite=
                     st.write(f"**Start Date:** {listing['start_date']}")
                     st.write(f"**Duration:** {listing['duration']}")
                     st.write(f"**Number of Hours per Week:** {listing['weekly_hours']}")
-                    st.write(f"**Hourly Pay Rate:** ${listing['pay_rate']}")
+                    
+                    # Display pay rate based on compensation type
+                    if listing['compensation_type'] == 'paid':
+                        st.write(f"**Hourly Pay Rate:** ${listing['pay_rate']:.2f}")
+                    else:
+                        st.write(f"**Hourly Pay Rate:** N/A")
+                    
                     st.write(f"**Skills Required:** {listing['skills']}")
                     if "website_urls" in listing and listing["website_urls"] != "n/a":
                         st.write(f"**Website URL(s):** {listing['website_urls']}")
@@ -374,8 +387,11 @@ def main():
                     team = st.text_input("Additional Collaborators", value="", placeholder="ex. Grace Hopper, John von Neumann", key=f"team_input_{form_key}")
                     department = st.selectbox("Department/Lab *", options=["Computer Science", "Data Science"], index=0, key=f"dept_input_{form_key}")
                     openings = st.number_input("Number of Openings *", min_value=1, max_value=10, value=1, step=1, key=f"openings_input_{form_key}")
-                    start_date = st.date_input("Start Date *", key=f"start_date_input_{form_key}")
-                    st.caption(f"Will display as: {start_date.strftime('%B %d, %Y')}")
+                    start_date = st.date_input("Start Date *", value=datetime.now().date(), key=f"start_date_input_{form_key}")
+                    if start_date:
+                        st.caption(f"Will display as: {start_date.strftime('%B %d, %Y')}")
+                    else:
+                        st.caption("Please select a start date")
                     duration = st.selectbox("Duration *", options=["1 semester", "2 semesters", "More than 2 semesters"], index=0, key=f"duration_input_{form_key}")
                     weekly_hours = st.number_input("Number of Hours per Week *", min_value=1, value=1, step=1, key=f"hours_input_{form_key}")
 
@@ -383,7 +399,8 @@ def main():
                     if compensation_type == "Paid":
                         pay_rate = st.number_input(
                             "Hourly Pay Rate ($) *",
-                            min_value=0.0,
+                            min_value=16.35,
+                            value=16.35,
                             step=0.01,
                             format="%.2f",
                             key=f"pay_rate_input_{form_key}"
@@ -534,7 +551,13 @@ def main():
                                 st.write(f"**Start Date:** {listing['start_date']}")
                                 st.write(f"**Duration:** {listing['duration']}")
                                 st.write(f"**Number of Hours per Week:** {listing['weekly_hours']}")
-                                st.write(f"**Hourly Pay Rate:** ${listing['pay_rate']}")
+                                
+                                # Display pay rate based on compensation type
+                                if listing['compensation_type'] == 'paid':
+                                    st.write(f"**Hourly Pay Rate:** ${listing['pay_rate']:.2f}")
+                                else:
+                                    st.write(f"**Hourly Pay Rate:** N/A")
+                                
                                 st.write(f"**Skills Required:** {listing['skills']}")
                                 if "website_urls" in listing and listing["website_urls"] != "n/a":
                                     st.write(f"**Website URL(s):** {listing['website_urls']}")
