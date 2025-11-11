@@ -307,6 +307,77 @@ def handle_verify_email_action(oob_code: str):
         print(f"Error handling email verification: {e}")
         return False, "An error occurred while verifying your email. Please try again.", None
 
+# ============================ PASSWORD RESET ============================
+
+def change_password(email: str, current_password: str, new_password: str):
+    """
+    Change user's password after verifying current password.
+    
+    Args:
+        email: User's email
+        current_password: Current password for verification
+        new_password: New password to set
+    
+    Returns:
+        tuple: (success: bool, message: str, new_token: str or None)
+    """
+    try:
+        # First, verify current password by signing in
+        api_key = firebaseConfig["apiKey"]
+        signin_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}"
+        
+        signin_payload = {
+            "email": email,
+            "password": current_password,
+            "returnSecureToken": True
+        }
+        
+        signin_response = requests.post(signin_url, json=signin_payload, timeout=10)
+        signin_response.raise_for_status()
+        
+        signin_data = signin_response.json()
+        id_token = signin_data["idToken"]
+        
+        # Validate new password strength
+        is_strong, msg = strong_password(new_password)
+        if not is_strong:
+            return False, msg, None
+        
+        # Update password using the verified token
+        update_url = f"https://identitytoolkit.googleapis.com/v1/accounts:update?key={api_key}"
+        
+        update_payload = {
+            "idToken": id_token,
+            "password": new_password,
+            "returnSecureToken": True
+        }
+        
+        update_response = requests.post(update_url, json=update_payload, timeout=10)
+        update_response.raise_for_status()
+        
+        update_data = update_response.json()
+        new_token = update_data["idToken"]
+        
+        return True, "Password changed successfully!", new_token
+        
+    except HTTPError as e:
+        if e.response is not None:
+            try:
+                error_data = e.response.json()
+                error_message = error_data.get("error", {}).get("message", "")
+                
+                if "INVALID_PASSWORD" in error_message or "WRONG_PASSWORD" in error_message or "INVALID_LOGIN_CREDENTIALS" in error_message:
+                    return False, "Current password is incorrect. Please try again.", None
+                else:
+                    return False, friendly_firebase_error(e), None
+            except:
+                pass
+        
+        return False, friendly_firebase_error(e), None
+    
+    except Exception as e:
+        return False, f"Failed to change password: {str(e)}", None
+
 # ============================ AUTH OPERATIONS ============================
 
 def create_account(email: str, password: str, first_name: str, last_name: str):

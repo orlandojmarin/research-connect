@@ -3,7 +3,7 @@
 # Admins can also manage user roles through the Admin tab
 
 import streamlit as st
-from utils.auth_utils import delete_self_account, go, db, firebaseConfig
+from utils.auth_utils import delete_self_account, go, db, firebaseConfig, change_password
 from utils.profile_utils import (
     get_user_profile, delete_user_data, update_user_profile,
     get_all_users, update_user_role, count_admins
@@ -145,6 +145,111 @@ def render_account_info(profile_data, uid):
             
             if cancel_edit:
                 st.session_state.edit_profile_mode = False
+                st.rerun()
+
+def render_password_reset(email):
+    """Render the password reset section.
+    
+    Args:
+        email (str): User's email address
+    """
+    st.divider()
+    
+    # Initialize session state for password reset mode
+    if "reset_password_mode" not in st.session_state:
+        st.session_state.reset_password_mode = False
+    
+    with st.container(border=True):
+        st.subheader("🔒 Change Password")
+        
+        if not st.session_state.reset_password_mode:
+            st.write("Use a strong, unique password to keep your account safe.")
+            if st.button("🔑 Change Password", key="change_password_btn"):
+                st.session_state.reset_password_mode = True
+                st.rerun()
+        else:
+            st.info("🔑 **Changing Password** - Enter your current and new password below")
+            
+            with st.form("change_password_form"):
+                current_password = st.text_input(
+                    "Current Password *",
+                    type="password",
+                    placeholder="Enter your current password"
+                )
+                
+                new_password = st.text_input(
+                    "New Password *",
+                    type="password",
+                    placeholder="Enter your new password (min. 8 characters)"
+                )
+                
+                confirm_password = st.text_input(
+                    "Confirm New Password *",
+                    type="password",
+                    placeholder="Re-enter your new password"
+                )
+                
+                st.caption("Password must be at least 8 characters and include both letters and numbers.")
+                
+                col_save, col_cancel = st.columns(2)
+                
+                with col_save:
+                    submit_password = st.form_submit_button("💾 Change Password", type="primary", use_container_width=True)
+                
+                with col_cancel:
+                    cancel_password = st.form_submit_button("❌ Cancel", use_container_width=True)
+            
+            # Handle form submission
+            if submit_password:
+                # Collect all validation errors
+                errors = []
+                
+                if not current_password:
+                    errors.append("❌ Please enter your current password.")
+                if not new_password:
+                    errors.append("❌ Please enter a new password.")
+                if not confirm_password:
+                    errors.append("❌ Please confirm your new password.")
+                
+                if new_password and confirm_password and new_password != confirm_password:
+                    errors.append("❌ New passwords do not match.")
+                
+                if new_password and current_password and new_password == current_password:
+                    errors.append("❌ New password must be different from current password.")
+                
+                # Display all errors or proceed with password change
+                if errors:
+                    st.error("**Please fix the following issues:**")
+                    for error in errors:
+                        st.error(error)
+                else:
+                    with st.spinner("Changing password..."):
+                        try:
+                            success, message, new_token = change_password(
+                                email=email,
+                                current_password=current_password,
+                                new_password=new_password
+                            )
+                            
+                            if success:
+                                # Update the session token
+                                if new_token and "user" in st.session_state:
+                                    st.session_state.user["idToken"] = new_token
+                                
+                                st.success(f"✅ {message}")
+                                st.session_state.reset_password_mode = False
+                                
+                                # Show success message for 3 seconds before rerunning
+                                import time
+                                time.sleep(3)
+                                st.rerun()
+                            else:
+                                st.error(f"❌ {message}")
+                        except Exception as e:
+                            st.error(f"❌ An error occurred: {e}")
+            
+            if cancel_password:
+                st.session_state.reset_password_mode = False
                 st.rerun()
 
 def render_danger_zone(uid, id_token):
@@ -490,6 +595,7 @@ def main():
         with tab1:
             render_profile_header()
             render_account_info(profile_data, user_info['uid'])
+            render_password_reset(user_info['email'])
             render_danger_zone(user_info['uid'], user_info['idToken'])
         
         with tab2:
@@ -498,6 +604,7 @@ def main():
         # Faculty and students see only their profile
         render_profile_header()
         render_account_info(profile_data, user_info['uid'])
+        render_password_reset(user_info['email'])
         render_danger_zone(user_info['uid'], user_info['idToken'])
 
 if __name__ == "__main__":
