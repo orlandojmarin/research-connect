@@ -1,8 +1,13 @@
 streamlit
 pyrebase4
-
 python-dotenv>=1.0.1
 google-cloud-aiplatform>=1.66.0
 google-cloud-discoveryengine>=0.12.0
+google-cloud-storage
 firebase-admin
 requests
+sentence-transformers
+faiss-cpu
+google-cloud-aiplatform
+vertexai
+numpy
