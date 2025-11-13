@@ -3,7 +3,7 @@
 # Updated with email verification, custom action handler, and password reset
 # Streamlit Documentation: https://docs.streamlit.io/get-started 
 # run the program with streamlit run home.py
-# firebase action URLs: http://localhost:8501 or https://researchconnect.streamlit.app
+# firebase action URLs: http://localhost:8501 or https://researchconnect-526731741445.us-central1.run.app
 
 import streamlit as st
 from datetime import datetime

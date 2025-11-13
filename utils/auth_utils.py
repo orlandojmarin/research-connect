@@ -7,10 +7,35 @@ import unicodedata
 import re
 import streamlit as st
 import datetime
+import os
 
 # Started by Sana 
 # Updated by Orlando to protect credentials and add email verification functionality
 # Updated for Python 3.13 compatibility
+# Updated to support environment variables for Cloud Run deployment
+
+# ============================ CONFIG HELPER ============================
+def get_config(key, default=None):
+    """
+    Get config from environment variables (Cloud Run) or st.secrets (local).
+    
+    Args:
+        key: Configuration key to retrieve
+        default: Default value if key not found
+    
+    Returns:
+        Configuration value or default
+    """
+    # Try environment variable first (for Cloud Run)
+    env_value = os.environ.get(key)
+    if env_value:
+        return env_value
+    
+    # Fall back to st.secrets (for local development)
+    try:
+        return st.secrets[key]
+    except:
+        return default
 
 # ============================ VALIDATE ENVIRONMENT VARIABLES ============================
 required_env_vars = [
@@ -19,11 +44,11 @@ required_env_vars = [
     "FIREBASE_APP_ID", "FIREBASE_MEASUREMENT_ID", "FIREBASE_DATABASE_URL"
 ]
 
-missing_vars = [var for var in required_env_vars if var not in st.secrets]
+missing_vars = [var for var in required_env_vars if get_config(var) is None]
 if missing_vars:
     raise EnvironmentError(
-        f"⚠️  Missing required Firebase secrets: {', '.join(missing_vars)}\n"
-        f"Please add these variables to Streamlit secrets.\n"
+        f"⚠️  Missing required Firebase configuration: {', '.join(missing_vars)}\n"
+        f"Please add these as environment variables or in Streamlit secrets.\n"
     )
 
 # ============================ SETTINGS ============================
@@ -33,16 +58,34 @@ ALLOWED_DOMAINS = {"southernct.edu"}
 # Initialize Firebase Admin SDK
 if not firebase_admin._apps:
     try:
-        # Try to use service account credentials if available
-        cred = credentials.Certificate(dict(st.secrets["gcp_service_account"]))
-        firebase_admin.initialize_app(cred, {
-            'databaseURL': st.secrets["FIREBASE_DATABASE_URL"]
-        })
+        # Try to get service account from environment variable first (Cloud Run)
+        service_account_json = os.environ.get("GCP_SERVICE_ACCOUNT_JSON")
+        
+        if service_account_json:
+            # Cloud Run: parse JSON string from environment variable
+            service_account_dict = json.loads(service_account_json)
+            cred = credentials.Certificate(service_account_dict)
+        else:
+            # Local: use secrets.toml
+            try:
+                cred = credentials.Certificate(dict(st.secrets["gcp_service_account"]))
+            except:
+                # Fallback: try default credentials
+                print("Warning: Using default credentials for Firebase Admin SDK")
+                firebase_admin.initialize_app(options={
+                    'databaseURL': get_config("FIREBASE_DATABASE_URL")
+                })
+                cred = None
+        
+        if cred:
+            firebase_admin.initialize_app(cred, {
+                'databaseURL': get_config("FIREBASE_DATABASE_URL")
+            })
     except Exception as e:
-        # Fallback to default credentials (shouldn't happen in production)
         print(f"Warning: Could not initialize with service account: {e}")
+        # Last resort fallback
         firebase_admin.initialize_app(options={
-            'databaseURL': st.secrets["FIREBASE_DATABASE_URL"]
+            'databaseURL': get_config("FIREBASE_DATABASE_URL")
         })
 
 # Get database reference
@@ -50,14 +93,14 @@ db = admin_db.reference()
 
 # Store Firebase config for REST API calls
 firebaseConfig = {
-    "apiKey": st.secrets["FIREBASE_API_KEY"],
-    "authDomain": st.secrets["FIREBASE_AUTH_DOMAIN"],
-    "projectId": st.secrets["FIREBASE_PROJECT_ID"],
-    "storageBucket": st.secrets["FIREBASE_STORAGE_BUCKET"],
-    "messagingSenderId": st.secrets["FIREBASE_MESSAGING_SENDER_ID"],
-    "appId": st.secrets["FIREBASE_APP_ID"],
-    "measurementId": st.secrets["FIREBASE_MEASUREMENT_ID"],
-    "databaseURL": st.secrets["FIREBASE_DATABASE_URL"],
+    "apiKey": get_config("FIREBASE_API_KEY"),
+    "authDomain": get_config("FIREBASE_AUTH_DOMAIN"),
+    "projectId": get_config("FIREBASE_PROJECT_ID"),
+    "storageBucket": get_config("FIREBASE_STORAGE_BUCKET"),
+    "messagingSenderId": get_config("FIREBASE_MESSAGING_SENDER_ID"),
+    "appId": get_config("FIREBASE_APP_ID"),
+    "measurementId": get_config("FIREBASE_MEASUREMENT_ID"),
+    "databaseURL": get_config("FIREBASE_DATABASE_URL"),
 }
 
 # ============================ HELPERS ============================
@@ -156,9 +199,9 @@ def friendly_firebase_error(err: Exception) -> str:
 def get_continue_url():
     """
     Get the continue URL for email verification redirects.
-    Uses Streamlit secrets.
+    Uses environment variables or Streamlit secrets.
     """
-    return st.secrets.get('APP_URL', 'http://localhost:8501')
+    return get_config('APP_URL', 'http://localhost:8501')
 
 def send_verification_email(id_token: str):
     """
