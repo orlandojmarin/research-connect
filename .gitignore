@@ -1,7 +1,31 @@
+# Environment files
 .env
 gcp-credentials.json
 
+# Streamlit secrets
 *.toml
 !.streamlit/config.toml
 .streamlit/secrets.toml
+
+# Python cache
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+env/
+.venv
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+
+env.yaml
