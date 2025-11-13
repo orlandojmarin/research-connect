@@ -7,10 +7,35 @@ import unicodedata
 import re
 import streamlit as st
 import datetime
+import os
 
 # Started by Sana 
 # Updated by Orlando to protect credentials and add email verification functionality
 # Updated for Python 3.13 compatibility
+# Updated to support environment variables for Cloud Run deployment
+
+# ============================ CONFIG HELPER ============================
+def get_config(key, default=None):
+    """
+    Get config from environment variables (Cloud Run) or st.secrets (local).
+    
+    Args:
+        key: Configuration key to retrieve
+        default: Default value if key not found
+    
+    Returns:
+        Configuration value or default
+    """
+    # Try environment variable first (for Cloud Run)
+    env_value = os.environ.get(key)
+    if env_value:
+        return env_value
+    
+    # Fall back to st.secrets (for local development)
+    try:
+        return st.secrets[key]
+    except:
+        return default
 
 # ============================ VALIDATE ENVIRONMENT VARIABLES ============================
 required_env_vars = [
@@ -19,11 +44,11 @@ required_env_vars = [
     "FIREBASE_APP_ID", "FIREBASE_MEASUREMENT_ID", "FIREBASE_DATABASE_URL"
 ]
 
-missing_vars = [var for var in required_env_vars if var not in st.secrets]
+missing_vars = [var for var in required_env_vars if get_config(var) is None]
 if missing_vars:
     raise EnvironmentError(
-        f"⚠️  Missing required Firebase secrets: {', '.join(missing_vars)}\n"
-        f"Please add these variables to Streamlit secrets.\n"
+        f"⚠️  Missing required Firebase configuration: {', '.join(missing_vars)}\n"
+        f"Please add these as environment variables or in Streamlit secrets.\n"
     )
 
 # ============================ SETTINGS ============================
@@ -33,16 +58,34 @@ ALLOWED_DOMAINS = {"southernct.edu"}
 # Initialize Firebase Admin SDK
 if not firebase_admin._apps:
     try:
-        # Try to use service account credentials if available
-        cred = credentials.Certificate(dict(st.secrets["gcp_service_account"]))
-        firebase_admin.initialize_app(cred, {
-            'databaseURL': st.secrets["FIREBASE_DATABASE_URL"]
-        })
+        # Try to get service account from environment variable first (Cloud Run)
+        service_account_json = os.environ.get("GCP_SERVICE_ACCOUNT_JSON")
+        
+        if service_account_json:
+            # Cloud Run: parse JSON string from environment variable
+            service_account_dict = json.loads(service_account_json)
+            cred = credentials.Certificate(service_account_dict)
+        else:
+            # Local: use secrets.toml
+            try:
+                cred = credentials.Certificate(dict(st.secrets["gcp_service_account"]))
+            except:
+                # Fallback: try default credentials
+                print("Warning: Using default credentials for Firebase Admin SDK")
+                firebase_admin.initialize_app(options={
+                    'databaseURL': get_config("FIREBASE_DATABASE_URL")
+                })
+                cred = None
+        
+        if cred:
+            firebase_admin.initialize_app(cred, {
+                'databaseURL': get_config("FIREBASE_DATABASE_URL")
+            })
     except Exception as e:
-        # Fallback to default credentials (shouldn't happen in production)
         print(f"Warning: Could not initialize with service account: {e}")
+        # Last resort fallback
         firebase_admin.initialize_app(options={
-            'databaseURL': st.secrets["FIREBASE_DATABASE_URL"]
+            'databaseURL': get_config("FIREBASE_DATABASE_URL")
         })
 
 # Get database reference
@@ -50,14 +93,14 @@ db = admin_db.reference()
 
 # Store Firebase config for REST API calls
 firebaseConfig = {
-    "apiKey": st.secrets["FIREBASE_API_KEY"],
-    "authDomain": st.secrets["FIREBASE_AUTH_DOMAIN"],
-    "projectId": st.secrets["FIREBASE_PROJECT_ID"],
-    "storageBucket": st.secrets["FIREBASE_STORAGE_BUCKET"],
-    "messagingSenderId": st.secrets["FIREBASE_MESSAGING_SENDER_ID"],
-    "appId": st.secrets["FIREBASE_APP_ID"],
-    "measurementId": st.secrets["FIREBASE_MEASUREMENT_ID"],
-    "databaseURL": st.secrets["FIREBASE_DATABASE_URL"],
+    "apiKey": get_config("FIREBASE_API_KEY"),
+    "authDomain": get_config("FIREBASE_AUTH_DOMAIN"),
+    "projectId": get_config("FIREBASE_PROJECT_ID"),
+    "storageBucket": get_config("FIREBASE_STORAGE_BUCKET"),
+    "messagingSenderId": get_config("FIREBASE_MESSAGING_SENDER_ID"),
+    "appId": get_config("FIREBASE_APP_ID"),
+    "measurementId": get_config("FIREBASE_MEASUREMENT_ID"),
+    "databaseURL": get_config("FIREBASE_DATABASE_URL"),
 }
 
 # ============================ HELPERS ============================
@@ -156,9 +199,9 @@ def friendly_firebase_error(err: Exception) -> str:
 def get_continue_url():
     """
     Get the continue URL for email verification redirects.
-    Uses Streamlit secrets.
+    Uses environment variables or Streamlit secrets.
     """
-    return st.secrets.get('APP_URL', 'http://localhost:8501')
+    return get_config('APP_URL', 'http://localhost:8501')
 
 def send_verification_email(id_token: str):
     """
@@ -306,6 +349,210 @@ def handle_verify_email_action(oob_code: str):
     except Exception as e:
         print(f"Error handling email verification: {e}")
         return False, "An error occurred while verifying your email. Please try again.", None
+
+# ============================ PASSWORD RESET ============================
+
+def send_password_reset_email(email: str):
+    """
+    Send password reset email to user.
+    
+    Args:
+        email: User's email address
+    
+    Returns:
+        tuple: (success: bool, message: str)
+    """
+    try:
+        api_key = firebaseConfig["apiKey"]
+        url = f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={api_key}"
+        
+        payload = {
+            "requestType": "PASSWORD_RESET",
+            "email": email
+        }
+        
+        response = requests.post(url, json=payload, timeout=10)
+        response.raise_for_status()
+        
+        return True, "Password reset email sent! Please check your inbox."
+        
+    except HTTPError as e:
+        if e.response is not None:
+            try:
+                error_data = e.response.json()
+                error_message = error_data.get("error", {}).get("message", "")
+                
+                if "EMAIL_NOT_FOUND" in error_message:
+                    return False, "No account exists with this email address."
+                else:
+                    return False, friendly_firebase_error(e)
+            except:
+                pass
+        
+        return False, friendly_firebase_error(e)
+    
+    except Exception as e:
+        return False, f"Failed to send password reset email: {str(e)}"
+
+def handle_password_reset_action(oob_code: str, new_password: str, current_password_check: str = None):
+    """
+    Complete password reset using the code from reset email.
+    
+    Args:
+        oob_code: The action code from the password reset email URL
+        new_password: The new password to set
+        current_password_check: Optional current password to verify it's different
+    
+    Returns:
+        tuple: (success: bool, message: str, email: str or None)
+    """
+    try:
+        # Validate new password strength
+        is_strong, msg = strong_password(new_password)
+        if not is_strong:
+            return False, msg, None
+        
+        # First, verify the code and get the email (without resetting yet)
+        api_key = firebaseConfig["apiKey"]
+        
+        # Verify the reset code is valid and get user email
+        verify_url = f"https://identitytoolkit.googleapis.com/v1/accounts:resetPassword?key={api_key}"
+        
+        # First call without newPassword to verify code and get email
+        verify_payload = {
+            "oobCode": oob_code
+        }
+        
+        verify_response = requests.post(verify_url, json=verify_payload, timeout=10)
+        
+        # If code is valid, we get the email back
+        if verify_response.status_code == 200:
+            verify_data = verify_response.json()
+            email = verify_data.get("email", "")
+            
+            # Now try to sign in with the new password to check if it's the same as current
+            if email:
+                signin_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}"
+                signin_payload = {
+                    "email": email,
+                    "password": new_password,
+                    "returnSecureToken": True
+                }
+                
+                # Try signing in with the new password
+                try:
+                    signin_response = requests.post(signin_url, json=signin_payload, timeout=10)
+                    
+                    # If sign-in succeeds, the new password is the same as current password
+                    if signin_response.status_code == 200:
+                        return False, "Your new password cannot be the same as your current password. Please choose a different password.", email
+                except:
+                    # Sign-in failed, which means password is different - this is what we want
+                    pass
+            
+            # Password is different, proceed with reset
+            reset_payload = {
+                "oobCode": oob_code,
+                "newPassword": new_password
+            }
+            
+            reset_response = requests.post(verify_url, json=reset_payload, timeout=10)
+            reset_response.raise_for_status()
+            
+            return True, "Password reset successfully! You can now log in with your new password.", email
+        else:
+            # Handle verification errors
+            verify_response.raise_for_status()
+        
+    except HTTPError as e:
+        if e.response is not None:
+            try:
+                error_data = e.response.json()
+                error_message = error_data.get("error", {}).get("message", "")
+                
+                if "INVALID_OOB_CODE" in error_message:
+                    return False, "This password reset link is invalid or has already been used.", None
+                elif "EXPIRED_OOB_CODE" in error_message:
+                    return False, "This password reset link has expired. Please request a new one.", None
+                else:
+                    return False, "Unable to reset password. Please try again or request a new reset link.", None
+            except:
+                pass
+        
+        return False, "Unable to reset password. Please try again or request a new reset link.", None
+    
+    except Exception as e:
+        print(f"Error handling password reset: {e}")
+        return False, "An error occurred while resetting your password. Please try again.", None
+
+def change_password(email: str, current_password: str, new_password: str):
+    """
+    Change user's password after verifying current password.
+    
+    Args:
+        email: User's email
+        current_password: Current password for verification
+        new_password: New password to set
+    
+    Returns:
+        tuple: (success: bool, message: str, new_token: str or None)
+    """
+    try:
+        # First, verify current password by signing in
+        api_key = firebaseConfig["apiKey"]
+        signin_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}"
+        
+        signin_payload = {
+            "email": email,
+            "password": current_password,
+            "returnSecureToken": True
+        }
+        
+        signin_response = requests.post(signin_url, json=signin_payload, timeout=10)
+        signin_response.raise_for_status()
+        
+        signin_data = signin_response.json()
+        id_token = signin_data["idToken"]
+        
+        # Validate new password strength
+        is_strong, msg = strong_password(new_password)
+        if not is_strong:
+            return False, msg, None
+        
+        # Update password using the verified token
+        update_url = f"https://identitytoolkit.googleapis.com/v1/accounts:update?key={api_key}"
+        
+        update_payload = {
+            "idToken": id_token,
+            "password": new_password,
+            "returnSecureToken": True
+        }
+        
+        update_response = requests.post(update_url, json=update_payload, timeout=10)
+        update_response.raise_for_status()
+        
+        update_data = update_response.json()
+        new_token = update_data["idToken"]
+        
+        return True, "Password changed successfully!", new_token
+        
+    except HTTPError as e:
+        if e.response is not None:
+            try:
+                error_data = e.response.json()
+                error_message = error_data.get("error", {}).get("message", "")
+                
+                if "INVALID_PASSWORD" in error_message or "WRONG_PASSWORD" in error_message or "INVALID_LOGIN_CREDENTIALS" in error_message:
+                    return False, "Current password is incorrect. Please try again.", None
+                else:
+                    return False, friendly_firebase_error(e), None
+            except:
+                pass
+        
+        return False, friendly_firebase_error(e), None
+    
+    except Exception as e:
+        return False, f"Failed to change password: {str(e)}", None
 
 # ============================ AUTH OPERATIONS ============================
 

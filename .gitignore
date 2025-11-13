@@ -1,10 +1,21 @@
-# Environment and credentials
+# ==============================
+# Environment files
+# ==============================
 .env
 gcp-credentials.json
+env.yaml
 
+# ==============================
 # Streamlit secrets
+# ==============================
 .streamlit/secrets.toml
 !.streamlit/config.toml
+
+# ==============================
+# TOML and misc configs
+# ==============================
+*.toml
+!config.toml   # keep global config if needed
 
 # ==============================
 # Python cache and temporary files
@@ -13,15 +24,27 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.py[cod]
+*$py.class
+*.so
+
+# ==============================
+# Virtual environments
+# ==============================
+venv/
+env/
+.venv/
+
+# ==============================
+# IDE files
+# ==============================
+.vscode/
+.idea/
+*.swp
+*.swo
 
 # ==============================
 # Logs and system files
 # ==============================
 *.log
 .DS_Store
-
-# ==============================
-# TOML and misc configs
-# ==============================
-*.toml
-!config.toml  # keep global config if needed

@@ -1,4 +1,12 @@
 # Sana
+# ORLANDO
+# chatbot_utils.py
+
+"""
+Chatbot utilities for ResearchConnect SCSU
+Handles chatbot functionality, response generation, and conversation management
+Updated to support environment variables for Cloud Run deployment
+"""
 
 import os
 from dotenv import load_dotenv
@@ -6,6 +14,10 @@ import datetime
 import streamlit as st
 import vertexai
 from vertexai.generative_models import GenerativeModel
+from vertexai.generative_models import GenerativeModel
+from google.oauth2 import service_account
+import os
+import json
 
 # ==========================================================
 # --- RAG + Firebase Imports ---
@@ -31,26 +43,85 @@ format_listings_brief = getattr(fq, "format_listings_brief", None) or (lambda it
 get_all_listings_raw = getattr(fq, "get_all_listings_raw", _noop)
 
 # ==========================================================
-# Load Vertex AI
+# Load Config (local secrets or Cloud Run env)
 # ==========================================================
+def get_config(key, default=None):
+    """
+    Get config from environment variables (Cloud Run) or st.secrets (local).
+    """
+    env_value = os.environ.get(key)
+    if env_value:
+        return env_value
+    
+    try:
+        return st.secrets[key]
+    except:
+        return default
+
 load_dotenv()
 
 @st.cache_resource
 def initialize_vertex_ai():
     try:
-        project_id = st.secrets.get("GCP_PROJECT_ID") or os.getenv("GCP_PROJECT_ID")
-        region = (
-            st.secrets.get("VERTEX_REGION")
-            or os.getenv("VERTEX_REGION")
-            or "us-central1"
-        )
+        # ---------------------------------------------------
+        # Get project ID from environment or secrets
+        # (Works for BOTH local and Cloud Run)
+        # ---------------------------------------------------
+        project_id = get_config("GCP_PROJECT_ID")
+
         if not project_id:
+            print("Error: GCP_PROJECT_ID not found in environment variables or secrets")
             return None
 
-        vertexai.init(project=project_id, location=region)
-        return GenerativeModel("gemini-2.5-flash")
-    except Exception:
+        # ---------------------------------------------------
+        # Determine region (local → st.secrets, Cloud Run → env)
+        # ---------------------------------------------------
+        region = (
+            get_config("VERTEX_REGION")
+            or "us-central1"
+        )
+
+        # ---------------------------------------------------
+        # Load service account credentials
+        # Cloud Run → env var GCP_SERVICE_ACCOUNT_JSON
+        # Local → st.secrets["gcp_service_account"]
+        # ---------------------------------------------------
+        service_account_json = os.environ.get("GCP_SERVICE_ACCOUNT_JSON")
+
+        if service_account_json:
+            # Cloud Run service account as JSON string
+            service_account_dict = json.loads(service_account_json)
+            credentials = service_account.Credentials.from_service_account_info(
+                service_account_dict
+            )
+        else:
+            # Local machine
+            try:
+                credentials = service_account.Credentials.from_service_account_info(
+                    st.secrets["gcp_service_account"]
+                )
+            except Exception as e:
+                print(f"Warning: Could not load service account from secrets: {e}")
+                credentials = None  # Let VertexAI try default credentials
+
+        # ---------------------------------------------------
+        # Initialize Vertex AI
+        # ---------------------------------------------------
+        vertexai.init(
+            project=project_id,
+            location=region,
+            credentials=credentials
+        )
+
+        model = GenerativeModel("gemini-2.5-flash")
+        print("Vertex AI initialized successfully")
+        return model
+
+    except Exception as e:
+        print(f"Failed to initialize Vertex AI: {e}")
         return None
+
+    
 
 # ==========================================================
 # Chat Session
@@ -258,7 +329,7 @@ def _build_context(q: str) -> str:
 def generate_chatbot_response(user_input):
     model = initialize_vertex_ai()
     if not model:
-        return "Vertex AI is not initialized."
+        return "I'm having trouble connecting to my AI system right now. Please try again in a moment, or contact support if this issue persists."
 
     context_block = _build_context(user_input)
 
