@@ -194,5 +194,37 @@ def get_resource_usage_stats():
         "most_popular": most_popular,
         "unique_resources": len(resource_counts)
     }
+def search_resources(query: str):
+    """
+    Return (name, data) for Innovation Hub, JOBSs, OCPD, or STEM Center.
+    """
+    q = query.lower()
+
+    resources = {
+        "innovation hub": get_innovation_hub_info(),
+        "jobs": get_jobs_info(),
+        "jobss": get_jobs_info(),
+        "ocpd": get_ocpd_info(),
+        "career center": get_ocpd_info(),
+        "stem center": get_stem_centers_info().get("stem_center", {}),
+        "stem": get_stem_centers_info().get("stem_center", {}),
+    }
+
+    # direct name match
+    for name in resources:
+        if name in q:
+            return name, resources[name]
+
+    # keyword categories
+    if any(k in q for k in ["career", "resume", "interview"]):
+        return "ocpd", get_ocpd_info()
+
+    if any(k in q for k in ["innovation", "startup", "grant"]):
+        return "innovation hub", get_innovation_hub_info()
+
+    if "stem" in q:
+        return "stem center", get_stem_centers_info().get("stem_center", {})
+
+    return None, None
 
 #-----END OF FILE-----
