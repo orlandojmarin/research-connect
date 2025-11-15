@@ -1,3 +1,7 @@
+# auth_utils.py
+# Started by Sana
+# Updated by Orlando to add email verification functionality
+
 import firebase_admin
 from firebase_admin import credentials, db as admin_db
 from requests.exceptions import HTTPError
@@ -8,11 +12,6 @@ import re
 import streamlit as st
 import datetime
 import os
-
-# Started by Sana 
-# Updated by Orlando to protect credentials and add email verification functionality
-# Updated for Python 3.13 compatibility
-# Updated to support environment variables for Cloud Run deployment
 
 # ============================ CONFIG HELPER ============================
 def get_config(key, default=None):

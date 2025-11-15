@@ -1,6 +1,6 @@
+# general_utils.py
 # ORLANDO
-# GENERAL UTILITIES
-# Common functions used across multiple pages
+# GENERAL UTILITIES (Common functions used across multiple pages)
 
 import streamlit as st
 

@@ -14,21 +14,6 @@ from utils.profile_utils import get_user_profile
 from utils.general_utils import render_sidebar_auth, render_theme_tip
 
 # ----- DYNAMIC PAGE CONFIG -----
-# def configure_page():
-#     """Set the Streamlit page configuration with dynamic layout based on auth state."""
-#     # ✅ FIX: Check if Microsoft user is logged in for layout
-#     is_logged_in = hasattr(st, 'user') and st.user.is_logged_in
-    
-#     # Set layout based on authentication state
-#     layout = "wide" if is_logged_in else "centered"
-    
-#     st.set_page_config(
-#         page_title="ResearchConnect SCSU",
-#         page_icon="🦉",
-#         layout=layout,
-#         initial_sidebar_state="expanded"
-#     )
-
 def configure_page():
     """Set the Streamlit page configuration with dynamic layout based on auth state."""
     # Default to centered (for landing page)
@@ -167,29 +152,6 @@ def render_footer():
     st.caption("Developed by Tatiana Eng, Orlando Marin, and Sana Muneer | CSC 400 Capstone Project")
 
 # ----- AUTH GATE -----
-# def auth_gate():
-#     """Gate access based on Microsoft OIDC authentication."""
-    
-#     # Initialize session state
-#     if "user" not in st.session_state:
-#         st.session_state.user = None
-    
-#     # Check if user is logged in via Microsoft
-#     if not st.user.is_logged_in:
-#         hide_sidebar()
-#         render_landing()
-#         st.stop()
-    
-#     # Verify SCSU email and create/update profile
-#     if not verify_scsu_email():
-#         st.stop()
-    
-#     # Show sidebar with logout
-#     with st.sidebar:
-#         render_sidebar_auth(show_role=True)
-#         st.divider()
-#         render_theme_tip()
-
 def auth_gate():
     """Gate access based on Microsoft OIDC authentication."""
     

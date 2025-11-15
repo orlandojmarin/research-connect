@@ -6,8 +6,6 @@ gcp-credentials.json
 *.toml
 !.streamlit/config.toml
 .streamlit/secrets.toml
-secrets-production.toml
-.streamlit/secrets-production.toml
 
 # Python cache
 __pycache__/
@@ -29,6 +27,3 @@ env/
 
 # Logs
 *.log
-
-env.yaml
-deploy.sh
