@@ -1,19 +1,42 @@
+# chatbot_utils.py
 # ORLANDO
+
 """
 Chatbot utilities for ResearchConnect SCSU
 Handles chatbot functionality, response generation, and conversation management
+Updated to support environment variables for Cloud Run deployment
 """
 
 import datetime
 import random
 import streamlit as st
-import os
-from dotenv import load_dotenv
 import vertexai
 from vertexai.generative_models import GenerativeModel
+from google.oauth2 import service_account
+import os
+import json
 
-# Load environment variables
-load_dotenv()
+def get_config(key, default=None):
+    """
+    Get config from environment variables (Cloud Run) or st.secrets (local).
+    
+    Args:
+        key: Configuration key to retrieve
+        default: Default value if key not found
+    
+    Returns:
+        Configuration value or default
+    """
+    # Try environment variable first (for Cloud Run)
+    env_value = os.environ.get(key)
+    if env_value:
+        return env_value
+    
+    # Fall back to st.secrets (for local development)
+    try:
+        return st.secrets[key]
+    except:
+        return default
 
 @st.cache_resource
 def initialize_vertex_ai():
@@ -24,12 +47,40 @@ def initialize_vertex_ai():
         GenerativeModel or None: Initialized model or None if fails
     """
     try:
-        project_id = os.getenv('GCP_PROJECT_ID')
+        # Get project ID from environment or secrets
+        project_id = get_config("GCP_PROJECT_ID")
+        
         if not project_id:
-            print("GCP_PROJECT_ID not found in environment variables")
+            print("Error: GCP_PROJECT_ID not found in environment variables or secrets")
             return None
         
-        vertexai.init(project=project_id, location="us-central1")
+        # Try to get service account from environment variable first (Cloud Run)
+        service_account_json = os.environ.get("GCP_SERVICE_ACCOUNT_JSON")
+        
+        if service_account_json:
+            # Cloud Run: parse JSON string from environment variable
+            service_account_dict = json.loads(service_account_json)
+            credentials = service_account.Credentials.from_service_account_info(
+                service_account_dict
+            )
+        else:
+            # Local: use secrets.toml
+            try:
+                credentials = service_account.Credentials.from_service_account_info(
+                    st.secrets["gcp_service_account"]
+                )
+            except Exception as e:
+                print(f"Warning: Could not load service account from secrets: {e}")
+                # Try using default credentials as last resort
+                credentials = None
+        
+        # Initialize Vertex AI with credentials
+        vertexai.init(
+            project=project_id, 
+            location="us-central1",
+            credentials=credentials
+        )
+        
         model = GenerativeModel("gemini-2.5-flash")
         print("Vertex AI initialized successfully")
         return model
@@ -161,7 +212,7 @@ def generate_chatbot_response(user_input):
     model = initialize_vertex_ai()
     
     if not model:
-        return "Vertex AI is not initialized."
+        return "I'm having trouble connecting to my AI system right now. Please try again in a moment, or contact support if this issue persists."
 
     try:
         # System instructions
@@ -191,7 +242,7 @@ guide the user to check the appropriate office or webpage."""
 
     except Exception as e:
         print(f"Vertex AI response failed: {e}")
-        return "Sorry, I'm having trouble generating a response right now."
+        return "Sorry, I'm having trouble generating a response right now. Please try rephrasing your question or try again in a moment."
 
 
 def log_conversation(user_input, bot_response):

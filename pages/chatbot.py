@@ -1,6 +1,6 @@
-# ORLANDO
+# ORLANDO (chatbot UI) and SANA (RAG)
+# chatbot.py
 # Streamlit Documentation: https://docs.streamlit.io/get-started 
-# Run the app with streamlit run home.py
 
 import streamlit as st
 from utils.chatbot_utils import (

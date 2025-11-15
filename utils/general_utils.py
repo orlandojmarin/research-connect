@@ -1,9 +1,8 @@
+# general_utils.py
 # ORLANDO
-# GENERAL UTILITIES
-# Common functions used across multiple pages
+# GENERAL UTILITIES (Common functions used across multiple pages)
 
 import streamlit as st
-from utils.auth_utils import logout
 
 def auth_gate():
     """
@@ -35,7 +34,7 @@ def get_current_user():
         "uid": user.get("uid", ""),
         "email": user.get("email", ""),
         "role": user.get("role", "student"),
-        "idToken": user.get("idToken", "")
+        "name": user.get("name", "")
     }
 
 def render_sidebar_auth(show_role=False):
@@ -54,9 +53,12 @@ def render_sidebar_auth(show_role=False):
     if show_role:
         st.caption(f"Role: {user_info['role']}")
     
-    if st.button("Log Out", use_container_width=True):
-        logout()
-        st.rerun()
+    # Updated to use st.logout() instead of Firebase logout
+    if st.button("🚪 Log Out", width="stretch"):
+        # Clear session state
+        st.session_state.user = None
+        # Use Streamlit's native logout
+        st.logout()
 
 def configure_page(title, icon="🦉", layout="wide", sidebar_state="expanded"):
     """
