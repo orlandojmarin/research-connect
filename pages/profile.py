@@ -1,4 +1,5 @@
 # ORLANDO
+# profile.py
 # Profile page where users can view, edit, and delete their account
 # Admins can also manage user roles through the Admin tab
 
