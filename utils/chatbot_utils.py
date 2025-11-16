@@ -1,39 +1,30 @@
-
-# Sana
-# ORLANDO
 # chatbot_utils.py
+# ORLANDO with Firebase integration from SANA
 
 """
 Chatbot utilities for ResearchConnect SCSU
 Handles chatbot functionality, response generation, and conversation management
-Updated to support environment variables for Cloud Run deployment
+Combines Orlando's conversation handling with Sana's Firebase listing integration
 """
 
-import os
-from dotenv import load_dotenv
 import datetime
 import streamlit as st
 import vertexai
 from vertexai.generative_models import GenerativeModel
 from google.oauth2 import service_account
+import os
 import json
 
 # ==========================================================
-# --- RAG + Firebase Imports ---
+# Firebase Imports (from Sana)
 # ==========================================================
-
 try:
     from utils import firebase_query_utils as fq
-    from utils.firebase_query_utils import filter_and_group_by_start_date
 except Exception:
     fq = None
 
-from utils.resources_utils import search_resources   # resource lookup
-
-
 def _noop(*args, **kwargs):
     return []
-
 
 # Map Firebase functions safely
 search_listings_by_keywords = getattr(fq, "search_listings_by_keywords", None) or _noop
@@ -45,160 +36,198 @@ format_listings_brief = getattr(fq, "format_listings_brief", None) or (
 get_all_listings_raw = getattr(fq, "get_all_listings_raw", _noop)
 
 # ==========================================================
-# Load Config (local secrets or Cloud Run env)
+# Configuration
 # ==========================================================
-
 
 def get_config(key, default=None):
     """
     Get config from environment variables (Cloud Run) or st.secrets (local).
+    
+    Args:
+        key: Configuration key to retrieve
+        default: Default value if key not found
+    
+    Returns:
+        Configuration value or default
     """
     env_value = os.environ.get(key)
     if env_value:
         return env_value
-
+    
     try:
         return st.secrets[key]
-    except Exception:
+    except:
         return default
-
-
-load_dotenv()
-
 
 @st.cache_resource
 def initialize_vertex_ai():
+    """
+    Initialize Vertex AI connection with caching to avoid repeated initializations
+    
+    Returns:
+        GenerativeModel or None: Initialized model or None if fails
+    """
     try:
-        # ---------------------------------------------------
-        # Get project ID from environment or secrets
-        # (Works for BOTH local and Cloud Run)
-        # ---------------------------------------------------
         project_id = get_config("GCP_PROJECT_ID")
-
+        
         if not project_id:
             print("Error: GCP_PROJECT_ID not found in environment variables or secrets")
             return None
-
-        # ---------------------------------------------------
-        # Determine region (local → st.secrets, Cloud Run → env)
-        # ---------------------------------------------------
-        region = get_config("VERTEX_REGION") or "us-central1"
-
-        # ---------------------------------------------------
-        # Load service account credentials
-        # Cloud Run → env var GCP_SERVICE_ACCOUNT_JSON
-        # Local → st.secrets["gcp_service_account"]
-        # ---------------------------------------------------
+        
+        # Try to get service account from environment variable first (Cloud Run)
         service_account_json = os.environ.get("GCP_SERVICE_ACCOUNT_JSON")
-
+        
         if service_account_json:
-            # Cloud Run service account as JSON string
             service_account_dict = json.loads(service_account_json)
             credentials = service_account.Credentials.from_service_account_info(
                 service_account_dict
             )
         else:
-            # Local machine
             try:
                 credentials = service_account.Credentials.from_service_account_info(
                     st.secrets["gcp_service_account"]
                 )
             except Exception as e:
                 print(f"Warning: Could not load service account from secrets: {e}")
-                credentials = None  # Let VertexAI try default credentials
-
-        # ---------------------------------------------------
-        # Initialize Vertex AI
-        # ---------------------------------------------------
-        vertexai.init(project=project_id, location=region, credentials=credentials)
-
+                credentials = None
+        
+        vertexai.init(
+            project=project_id, 
+            location="us-central1",
+            credentials=credentials
+        )
+        
+        # Using Gemini 2.5 Flash - best balance of speed, cost, and quality
         model = GenerativeModel("gemini-2.5-flash")
         print("Vertex AI initialized successfully")
         return model
-
     except Exception as e:
         print(f"Failed to initialize Vertex AI: {e}")
         return None
 
+# ==========================================================
+# Chat Session Management
+# ==========================================================
 
-# ==========================================================
-# Chat Session
-# ==========================================================
 def initialize_chat_session():
+    """
+    Initialize chat session state without an initial welcome message.
+    """
     if "messages" not in st.session_state:
-        st.session_state.messages = [
-            {
-                "role": "assistant",
-                "content": (
-                    "👋 Hi! I’m **ResearchConnect**, your AI assistant for SCSU research. "
-                    "I can help you explore research opportunities, faculty projects, and "
-                    "campus resources. What would you like to know?"
-                ),
-                "timestamp": datetime.datetime.now(),
-            }
-        ]
-
+        st.session_state.messages = []
 
 def get_sidebar_info():
-    return {
+    """
+    Get sidebar information and statistics
+    
+    Returns:
+        dict: Sidebar content configuration
+    """
+    sidebar_config = {
         "assistant_description": {
-            "title": "🧠 ResearchAI Assistant",
+            "title": "ResearchAI Assistant",
             "help_topics": [
-                "🔍 Finding research opportunities",
-                "👨‍🏫 Information about faculty",
-                "📚 Campus resources and offices",
-                "💼 Internship and fellowship programs",
-                "📝 Application processes",
-                "❓ General research questions",
-            ],
+                "Finding research opportunities",
+                "Information about faculty",
+                "Campus resources and offices", 
+                "Internship and fellowship programs",
+                "Application processes",
+                "General research questions"
+            ]
         },
     }
-
+    return sidebar_config
 
 def clear_conversation():
+    """
+    Clear the conversation history
+    """
     st.session_state.messages = []
     initialize_chat_session()
 
+def generate_prompt_summary(prompt_text):
+    """
+    Generate a concise 5-7 word summary of a user prompt using Vertex AI.
+    
+    Args:
+        prompt_text (str): The full user prompt
+        
+    Returns:
+        str: A 5-7 word summary
+    """
+    model = initialize_vertex_ai()
+    
+    if not model:
+        words = prompt_text.split()[:7]
+        return " ".join(words) + "..."
+    
+    try:
+        summary_prompt = f"""Generate a concise 5-7 word summary of the user's request. 
+Only return the summary, nothing else.
+
+Text: {prompt_text}
+
+Summary:"""
+        
+        response = model.generate_content(summary_prompt)
+        summary = response.text.strip()
+        
+        if len(summary.split()) > 10:
+            words = prompt_text.split()[:7]
+            return " ".join(words) + "..."
+        
+        return summary
+        
+    except Exception as e:
+        print(f"Summary generation failed: {e}")
+        words = prompt_text.split()[:7]
+        return " ".join(words) + "..."
 
 def add_user_message(content):
-    st.session_state.messages.append(
-        {
-            "role": "user",
-            "content": content,
-            "timestamp": datetime.datetime.now(),
-        }
-    )
-
+    """
+    Add user message to chat history with optional summary for long prompts
+    
+    Args:
+        content (str): User message content
+    """
+    message = {
+        "role": "user",
+        "content": content,
+        "timestamp": datetime.datetime.now()
+    }
+    
+    # Generate summary if prompt is long (>200 characters)
+    if len(content) > 200:
+        message["summary"] = generate_prompt_summary(content)
+    
+    st.session_state.messages.append(message)
 
 def add_assistant_message(content):
-    st.session_state.messages.append(
-        {
-            "role": "assistant",
-            "content": content,
-            "timestamp": datetime.datetime.now(),
-        }
-    )
-
+    """
+    Add assistant message to chat history
+    
+    Args:
+        content (str): Assistant message content
+    """
+    message = {
+        "role": "assistant", 
+        "content": content,
+        "timestamp": datetime.datetime.now()
+    }
+    st.session_state.messages.append(message)
 
 # ==========================================================
-# CLASSIFY QUERY
+# Query Classification (from Sana)
 # ==========================================================
+
 RESEARCH_KWS = {
-    "research",
-    "opportunity",
-    "opportunities",
-    "listing",
-    "listings",
-    "position",
-    "opening",
-    "paid",
-    "unpaid",
-    "hours",
+    "research", "opportunity", "opportunities", "listing", "listings",
+    "position", "opening", "paid", "unpaid", "hours",
 }
 FACULTY_KWS = {"professor", "faculty", "dr.", "dr ", "advisor", "pi"}
 
-
 def _classify_question(q: str) -> str:
+    """Classify query type"""
     ql = q.lower()
     if any(k in ql for k in FACULTY_KWS):
         return "faculty"
@@ -206,422 +235,198 @@ def _classify_question(q: str) -> str:
         return "listings"
     return "general"
 
+# ==========================================================
+# Context Building - Listings Only (adapted from Sana)
+# ==========================================================
 
-# ==========================================================
-# BUILD CONTEXT (NO HALLUCINATION LOGIC HERE)
-# ==========================================================
 def _build_context(q: str) -> str:
+    """
+    Build context from research listings database.
+    Returns formatted listing information or empty string if no matches.
+    """
     ql = q.lower()
 
-    # =========================================
-    # CAMPUS RESOURCES (Innovation Hub, JOBSs, OCPD, STEM)
-    # =========================================
-    name, data = search_resources(q)
-    if data:
-        lines = [f"{name.upper()} INFORMATION:\n"]
-
-        if "description" in data:
-            lines.append(data["description"].strip())
-
-        # Services (Innovation Hub, OCPD, STEM)
-        if "services" in data:
-            lines.append("\nServices:")
-            for s in data["services"]:
-                lines.append(f"- {s}")
-
-        if "career_services" in data:
-            lines.append("\nCareer Services:")
-            for s in data["career_services"]:
-                lines.append(f"- {s}")
-
-        # Contact information
-        if "email" in data:
-            lines.append(f"\nEmail: {data['email']}")
-        if "website" in data:
-            lines.append(f"Website: {data['website']}")
-
-        if "contact" in data:
-            c = data["contact"]
-            lines.append("\nContact:")
-            lines.append(f"Email: {c.get('email', 'N/A')}")
-            lines.append(f"Website: {c.get('website', 'N/A')}")
-
-        return "\n".join(lines)
-
-    # =========================================
-    # "SHOW ALL" OVERRIDE FOR LISTINGS
-    # =========================================
+    # Show all listings patterns
     show_all_patterns = [
-        "show all",
-        "all research",
-        "all opportunities",
-        "all listings",
-        "everything",
-        "currently available",
-        "list all",
-        "display all",
-        "show me all",
-        "show me all the research",
-        "show me all the research opportunities",
-        "show me all research opportunities",
-        "all the research",
-        "all the research opportunities",
+        "show all", "all research", "all opportunities", "all listings",
+        "everything", "currently available", "list all", "display all",
+        "show me all", "available research",
     ]
 
     if any(p in ql for p in show_all_patterns):
         listings = get_all_listings_raw()
         if not listings:
-            return "There are no research listings available right now."
+            return "CONTEXT: No research listings are currently available."
+        return "CONTEXT: All available research listings:\n\n" + format_listings_brief(listings)
 
-        return (
-            "Here are ALL available research opportunities:\n\n"
-            + format_listings_brief(listings)
-        )
-
-    # =========================================
-    # CLASSIFY QUERY TYPE
-    # =========================================
+    # Classify query type
     qtype = _classify_question(q)
 
-    # =========================================
-    # RESEARCH LISTINGS
-    # =========================================
+    # Research listings search
     if qtype == "listings":
-        show_all = "show all" in ql or ql.strip() in {
-            "all listings",
-            "all research",
-            "all research listings",
-        }
-
-        if show_all:
-            listings = get_all_listings_raw()
-            heading = "Here are all current research opportunities:"
-        elif "paid" in ql and "unpaid" not in ql:
+        if "paid" in ql and "unpaid" not in ql:
             listings = search_paid_listings(True, max_results=None)
-            heading = "Here are the paid research opportunities:"
+            heading = "CONTEXT: Paid research opportunities:"
         elif "unpaid" in ql and "paid" not in ql:
             listings = search_paid_listings(False, max_results=None)
-            heading = "Here are the unpaid research opportunities:"
+            heading = "CONTEXT: Unpaid research opportunities:"
         else:
             listings = search_listings_by_keywords(q, max_results=20)
-            heading = "Here are some matching research opportunities:"
+            heading = "CONTEXT: Matching research opportunities:"
 
         if not listings:
-            return (
-                "I looked through the research listings database but didn’t find "
-                "any opportunities matching what you asked."
-            )
-
+            return ""  # Return empty - let Gemini handle naturally
         return f"{heading}\n\n{format_listings_brief(listings)}"
 
-    # =========================================
-    # FACULTY FROM LISTINGS ONLY
-    # =========================================
+    # Faculty search
     if qtype == "faculty":
-        # 1. Try normal faculty search (name or department)
         listings = search_listings_by_faculty(q, max_results=None)
-
-        # 2. If no matches → return ALL faculty who have listings
-        if not listings:
-            all_listings = get_all_listings_raw()
-            if not all_listings:
-                return "There are no research listings available right now."
-
-            # Deduplicate by professor
-            faculty_map = {}
-            for item in all_listings:
-                pi = item.get("pi", "").strip()
-                if pi:
-                    faculty_map.setdefault(pi, []).append(item)
-
-            if not faculty_map:
-                return (
-                    "I checked the research listings but couldn't find faculty-led projects right now."
-                )
-
-            # Build response with all faculty who currently have research listings
-            response = ["Here are faculty members who currently have research listings:\n"]
-            for pi, items in faculty_map.items():
-                for it in items:
-                    response.append("- " + format_listings_brief([it]))
-
-            return "\n".join(response)
-
-        # 3. If normal search matched
-        return "Here are the faculty-led research projects I found:\n\n" + format_listings_brief(listings)
         
+        if not listings:
+            # Check if asking general question about faculty
+            general_patterns = ["which faculty", "what faculty", "who should", "best faculty", "recommend"]
+            if any(p in ql for p in general_patterns):
+                all_listings = get_all_listings_raw()
+                if all_listings:
+                    return "CONTEXT: Faculty members with current research opportunities:\n\n" + format_listings_brief(all_listings)
+            return ""  # Return empty - let Gemini handle naturally
+        
+        return "CONTEXT: Faculty-led research projects:\n\n" + format_listings_brief(listings)
 
+    return ""
 
 # ==========================================================
-# GEMINI — STRICT ANTI-HALLUCINATION MODE
+# Response Generation - Natural conversation with AI
 # ==========================================================
+
 def generate_chatbot_response(user_input):
+    """
+    Generate chatbot responses using Vertex AI with conversation context and listing data.
+    Minimal hardcoded responses - let Gemini handle naturally with intelligent redirects.
+    
+    Args:
+        user_input (str): User's input message
+        
+    Returns:
+        str: Generated response
+    """
     model = initialize_vertex_ai()
+    
+    # Only hardcoded response for technical errors
     if not model:
-        return (
-            "I'm having trouble connecting to my AI system right now. "
-            "Please try again in a moment, or contact support if this issue persists."
-        )
-
-    cleaned = user_input.lower().strip()
-
-    # Empty / whitespace input
-    if not cleaned:
-        return (
-            "I’m here to help you explore **SCSU research opportunities, faculty projects, "
-            "and campus resources**. What would you like to search for?"
-        )
-
-    # ============================================
-    # 1. FRIENDLY GREETING & SMALL TALK
-    # ============================================
-    # Normalize simple punctuation for matching
-    normalized = cleaned.replace("?", "").replace("!", "").strip()
-
-    # Greetings like "hi", "hi!", "hey there", etc.
-    greeting_words = {"hi", "hello", "hey", "hey there", "hi there", "yo"}
-    if normalized in greeting_words or normalized.startswith("hi ") or normalized.startswith(
-        "hello "
-    ):
-        return (
-            "Hi! 😊 I’m glad you’re here. I’m doing well and ready to help you find "
-            "research opportunities, faculty projects, or campus resources at SCSU. "
-            "What would you like to explore?"
-        )
-
-    # Variations of "how are you"
-    if "how are you" in cleaned or "how r u" in cleaned or "how are u" in cleaned:
-        return (
-            "I’m doing great, thanks for asking! 😊 "
-            "I’m here to support you with **research listings, faculty, and campus resources** "
-            "at SCSU. What are you curious about today?"
-        )
-
-    # ============================================
-    # 2. SAFE SCSU BASIC INFORMATION (STATIC)
-    # ============================================
-    # Questions about SCSU
-    if "scsu" in cleaned and (
-        "stand for" in cleaned
-        or "meaning" in cleaned
-        or "what is" in cleaned
-        or "tell me about" in cleaned
-        or "who are you" in cleaned
-        or "what does" in cleaned
-    ):
-        return (
-            "SCSU stands for **Southern Connecticut State University**, located in New Haven, CT. 💙 "
-            "I’m focused on helping you find research opportunities and resources connected to SCSU."
-        )
-
-    if cleaned == "what is scsu" or cleaned == "scsu":
-        return (
-            "SCSU is **Southern Connecticut State University**, a public university in New Haven, CT. "
-            "I can help you explore research opportunities and campus resources connected to SCSU."
-        )
-
-    # Questions about ResearchConnect / the app
-    if (
-        "researchconnect" in cleaned
-        or "research connect" in cleaned
-        or ("this app" in cleaned and "what" in cleaned)
-        or ("what is" in cleaned and "app" in cleaned)
-        or "who are you" in cleaned
-        or "tell me about yourself" in cleaned
-        or "what can you do" in cleaned
-        or "your role" in cleaned
-        or "who am i talking to" in cleaned
-        or "are you a chatbot" in cleaned
-    ):
-        return (
-            "ResearchConnect is the app you’re using right now 😊.\n\n"
-            "It helps SCSU students:\n"
-            "- 🔍 Find current **research listings** and opportunities\n"
-            "- 👨‍🏫 See **faculty projects** they can join\n"
-            "- 📚 Discover **campus resources** like the Innovation Hub or career services\n\n"
-            "You can ask things like:\n"
-            "- *“Show me all research opportunities”*\n"
-            "- *“Which listings are paid?”*\n"
-            "- *“Tell me about the Innovation Hub”*"
-        )
-
-    # Very vague “tell me more about it”
-    if "tell me more about it" in cleaned or "tell me more" in cleaned:
-        return (
-            "I’m not always sure what “it” refers to, but I can definitely help you learn more about "
-            "**research opportunities, faculty, and campus resources** at SCSU.\n\n"
-            "For example, you can ask:\n"
-            "- “Tell me more about the Innovation Hub”\n"
-            "- “Tell me more about Dr. Smith’s research listing”\n"
-            "- “Tell me more about paid research opportunities”"
-        )
-
-    # ============================================
-    # 3. FRIENDLY OFF-TOPIC REDIRECT
-    # ============================================
-    off_topic_patterns = [
-        "what is your name",
-        "who created you",
-        "who made you",
-        "how old are you",
-        "do you have feelings",
-        "are you real",
-        "tell me a story",
-        "tell me joke",
-        "joke",
-        "favorite food",
-        "favorite movie",
-        "do you like",
-        "are you single",
-    ]
-
-    if any(p in cleaned for p in off_topic_patterns):
-        return (
-            "Great question 😄 but I’m mainly designed to help with **SCSU research listings, "
-            "faculty projects, and campus resources**.\n\n"
-            "Try asking me things like:\n"
-            "- “Show me all research opportunities”\n"
-            "- “Which listings are paid?”\n"
-            "- “Who are the Computer Science faculty in the listings?”\n"
-            "- “Tell me about the Innovation Hub.”"
-        )
-    # ============================================
-    # 4. RECOMMENDATION SYSTEM (SAFE + FRIENDLY)
-    # ============================================
-
-    # Expanded patterns to catch more natural questions
-    recommend_patterns = [
-        "recommend", "suggest", "advice", "advise",
-        "guide", "guide me",
-        "help me start",
-        "what do you suggest",
-        "which resource", 
-    ]
-
-    # --- Check using substring detection ---
-    if any(p in cleaned for p in recommend_patterns):
-
-        # -------------------------------------------
-        # A. CS Student Resource Recommendation
-        # -------------------------------------------
-        if (
-            "computer science" in cleaned
-            or "cs student" in cleaned
-            or "tech" in cleaned
-            or "programming" in cleaned
-            or "resources" in cleaned
-            or "engineering" in cleaned
-        ):
-            return (
-                "If you're a Computer Science student, here are strong places to start:\n\n"
-                "🌟 **Innovation Hub** – career help, resume review, tech events, networking.\n"
-                "📘 **STEM Center** – tutoring, study support, faculty connections.\n"
-                "👨‍🏫 **CS Faculty Listings** – see which faculty are mentoring research.\n\n"
-                "You can ask me any questions related to research opportunities like:\n"
-                "- “Show me all research listings”\n"
-                "- “Paid research opportunities”\n"
-            )
-
-        # -------------------------------------------
-        # B. Recommend Professors FROM LISTINGS ONLY
-        # -------------------------------------------
-        if "professor" in cleaned or "faculty" in cleaned or "contact" in cleaned:
-            faculty_listings = search_listings_by_faculty("", max_results=None)
-
-            if faculty_listings:
-                return (
-                    "Here are faculty members who are currently running research:\n\n"
-                    f"{format_listings_brief(faculty_listings)}\n"
-                    "\nIf you want, I can filter by paid, unpaid, or upcoming projects!"
-                )
-            else:
-                return (
-                    "I checked the research listings and didn't find any active faculty-led projects.\n\n"
-                    "You can still visit the **Innovation Hub** or **STEM Center** to get help "
-                    "connecting with professors about future opportunities."
-                )
-
-        # -------------------------------------------
-        # C. General Research Recommendation
-        # -------------------------------------------
-        return (
-            "Here’s what I recommend if you're trying to get started with research:\n\n"
-            "1️⃣ Browse **current research listings** to see open projects.\n"
-            "2️⃣ Check **faculty-led projects** to see who is mentoring students.\n"
-            "3️⃣ Explore the **Innovation Hub** for resume help, mentoring, and research support.\n\n"
-            "Try asking me:\n"
-            "- “Show me all research opportunities”\n"
-            "- “Which resources help students find research?”\n"
-            "- “Which listings are paid?”"
-        )
-    # ============================================
-    # 4. RAG / LISTINGS / RESOURCES CONTEXT
-    # ============================================
-    context_block = (_build_context(user_input) or "")
-
-    # If context is empty → DO NOT LET GEMINI INVENT ANYTHING
-    if not context_block.strip():
-        return (
-            "I checked the research listings and the available information files, "
-            "but I couldn’t find anything related to that question. 😊\n\n"
-            "I can help best if you ask about **SCSU research opportunities, faculty, "
-            "or campus resources**."
-        )
-
-    # If context already says “no data” → return it directly
-    lower_ctx = context_block.lower()
-    if (
-        "didn’t find" in lower_ctx
-        or "didn't find" in lower_ctx
-        or "no research listings" in lower_ctx
-        or "couldn’t find" in lower_ctx
-    ):
-        return context_block
-
-    # Build conversation history
-    history = st.session_state.messages[-6:]
-    history_text = "".join(
-        f"{'Student' if m['role'] == 'user' else 'ResearchAI'}: {m['content']}\n"
-        for m in history
-    )
-    history_text += f"Student: {user_input}\nResearchAI:"
-
-    # Zero-hallucination system prompt
-    system_prompt = """
-You are ResearchAI, an assistant for Southern Connecticut State University (SCSU).
-
-STRICT RULES:
-1. You MUST ONLY use the information provided in the CONTEXT section.
-2. You CANNOT add or guess information, even if you believe it is correct.
-3. You CANNOT invent new offices, programs, or departments.
-4. You may rephrase or summarize what is in the context.
-"""
-
-    prompt = f"""{system_prompt}
-
-CONTEXT (the ONLY facts you may use):
-{context_block}
-
-Conversation so far:
-{history_text}
-"""
+        return "I'm having trouble connecting to my AI system right now. Please try again in a moment, or contact support if this issue persists."
 
     try:
-        response = model.generate_content(prompt)
+        # Build context from listings
+        context_block = _build_context(user_input)
+
+        # Take the last 10 messages from session state for conversation context
+        conversation_history = st.session_state.messages[-10:]
+        
+        # Build the conversation history
+        history_text = ""
+        for msg in conversation_history:
+            role = "Student" if msg["role"] == "user" else "ResearchAI"
+            history_text += f"{role}: {msg['content']}\n"
+        
+        # Add the new user input
+        history_text += f"Student: {user_input}\nResearchAI:"
+
+        # Enhanced system prompt with clear redirect guidance
+        system_prompt = """You are ResearchAI, a friendly and knowledgeable AI assistant for Southern Connecticut State University (SCSU).
+
+Your primary role is to help students find research opportunities and connect with faculty at SCSU.
+
+CORE CAPABILITIES:
+- Search and explain research listings
+- Help students find paid/unpaid research positions
+- Connect students with faculty members who have active research projects
+- Answer questions about research opportunities at SCSU
+- Guide students on how to get started with research
+
+IMPORTANT GUIDELINES:
+1. Be natural, conversational, and helpful in your responses
+2. When research listings are provided in the CONTEXT, use that information to give specific, accurate answers
+3. NEVER use technical terms like "database", "system", "data source" - instead say "current opportunities", "available positions", "active listings"
+4. When users ask to see ALL listings and you're given a preview, show the preview provided and direct them to the Listings page: "For the complete list of all [X] opportunities with full details and filtering options, visit the Listings page in ResearchConnect."
+5. For questions about campus resources (Innovation Hub, JOBSs, OCPD, STEM Center), politely redirect to the Resources page: "For detailed information about [resource name], please visit the Resources page in ResearchConnect."
+6. For off-topic questions (jokes, weather, sports, entertainment, personal questions), use this pattern: Briefly acknowledge → Politely redirect → Ask about research interests
+7. Always maintain context from the conversation history to handle follow-up questions naturally
+8. If you don't have specific information, be honest and suggest how the student can find it
+9. Keep responses concise but informative
+
+LANGUAGE TO USE:
+✅ "Here are some of the current research opportunities"
+✅ "I found these research listings for you"
+✅ "Currently available opportunities include"
+✅ "For the complete list, visit the Listings page"
+✅ "There are [X] total opportunities available"
+
+❌ NEVER SAY: "in the database", "from the database", "database shows", "according to my data sources", "my database"
+
+REDIRECT EXAMPLES FOR OFF-TOPIC QUESTIONS:
+- Weather: "I don't have weather information, but I can help you find research opportunities! What field interests you?"
+- Jokes: "I appreciate the humor, but I'm focused on helping you discover research opportunities at SCSU. Are you interested in exploring positions in a particular field?"
+- Movies/Sports: "That's outside my expertise - I specialize in SCSU research opportunities. Would you like to see current listings?"
+- General knowledge: "I'm specifically designed for SCSU research assistance. Let me help you find research positions instead - what's your major or area of interest?"
+
+ABOUT SCSU:
+- SCSU stands for Southern Connecticut State University in New Haven, Connecticut
+- ResearchConnect is the platform for finding faculty-led research opportunities
+- ResearchConnect has dedicated pages: Listings (for browsing all opportunities with filters), Resources (for campus resources), and this Chatbot
+
+Remember: Always redirect off-topic questions back to research opportunities while staying friendly and professional."""
+
+        # Construct the full prompt
+        if context_block:
+            full_prompt = f"""{system_prompt}
+
+{context_block}
+
+CONVERSATION HISTORY:
+{history_text}
+
+Respond naturally based on the research listings context and conversation history. If this is an off-topic question, follow the redirect guidelines."""
+        else:
+            full_prompt = f"""{system_prompt}
+
+Note: No research listings matched the specific search criteria.
+
+CONVERSATION HISTORY:
+{history_text}
+
+Respond naturally and helpfully. If this is an off-topic question, follow the redirect guidelines."""
+
+        # Generate response
+        response = model.generate_content(full_prompt)
         return response.text.strip()
-    except Exception:
-        return "Something went wrong while generating your answer."
 
-
+    except Exception as e:
+        print(f"Vertex AI response failed: {e}")
+        return "Sorry, I'm having trouble generating a response right now. Please try rephrasing your question or try again in a moment."
+    
 # ==========================================================
 # Logging
 # ==========================================================
+
 def log_conversation(user_input, bot_response):
-    entry = {
+    """
+    Log conversation for analytics and improvement
+    
+    Args:
+        user_input (str): User's input
+        bot_response (str): Bot's response
+    """
+    log_entry = {
         "timestamp": datetime.datetime.now(),
         "user_input": user_input,
         "bot_response": bot_response,
+        "session_id": st.session_state.get("session_id", "unknown")
     }
+    
     if "conversation_log" not in st.session_state:
         st.session_state.conversation_log = []
-    st.session_state.conversation_log.append(entry)
+    
+    st.session_state.conversation_log.append(log_entry)
+
+#-----END OF FILE-----

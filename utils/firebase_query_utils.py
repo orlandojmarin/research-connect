@@ -1,7 +1,10 @@
-# sana - updated to Firebase Admin SDK compatible version 
+# firebase_query_utils.py
+# SANA - updated to Firebase Admin SDK compatible version
+
 from firebase_admin import db as admin_db
 import re
 import json
+from datetime import datetime
 
 # -------------------------------------------------
 # Helpers to read all listings in raw form
@@ -47,6 +50,8 @@ def get_all_listings():
         hours = data.get("weekly_hours", "Unknown")
         openings = data.get("openings", "Unknown")
         summary = data.get("summary", "No description provided")
+        communication = data.get("communication", "Not specified")
+        team = data.get("team", "Not specified")
 
         output.append(
             f"Project: {title}\n"
@@ -56,6 +61,8 @@ def get_all_listings():
             f"Duration: {duration}, Start Date: {start_date}\n"
             f"Compensation: {compensation}, Hours/Week: {hours}\n"
             f"Openings: {openings}\n"
+            f"Team: {team}\n"
+            f"Communication Method: {communication}\n"
             f"Description: {summary}\n---"
         )
     
@@ -189,10 +196,15 @@ def search_listings_by_faculty(query, max_results=None):
     return docs
 
 # -------------------------------------------------
-# Brief formatter (unchanged)
+# UPDATED: Enhanced brief formatter with ALL fields
 # -------------------------------------------------
 
 def format_listings_brief(listings):
+    """
+    Format listings with comprehensive information including communication preferences.
+    Now includes: title, PI, department, pay, hours, start date, skills, 
+    communication method, team, and summary.
+    """
     out = []
     for L in listings:
         title = L.get("title", "Untitled")
@@ -203,29 +215,58 @@ def format_listings_brief(listings):
         hours = L.get("weekly_hours", "")
         start = L.get("start_date", "")
         skills = L.get("skills", "")
+        communication = L.get("communication", "")
+        team = L.get("team", "")
+        summary = L.get("summary", "")
+        openings = L.get("openings", "")
+        duration = L.get("duration", "")
 
-        # Build the base line EXACTLY like your original
-        line = f"- {title} | PI: {pi} | Dept: {dept} | Pay: {pay}"
-
-        # ONLY extra addition: append pay rate if paid
+        # Build comprehensive listing format
+        line = f"- **{title}**\n"
+        line += f"  Principal Investigator: {pi}\n"
+        line += f"  Department: {dept}\n"
+        line += f"  Compensation: {pay}"
+        
         if pay == "paid" and pay_rate not in ("", None, 0):
             line += f" (${pay_rate}/hour)"
+        
+        line += "\n"
 
-        # Continue your original formatting
         if hours:
-            line += f" | Hours/Week: {hours}"
+            line += f"  Hours/Week: {hours}\n"
 
         if start:
-            line += f" | Start: {start}"
+            line += f"  Start Date: {start}\n"
+        
+        if duration:
+            line += f"  Duration: {duration}\n"
+        
+        if openings:
+            line += f"  Openings: {openings}\n"
 
         if skills:
-            line += f" | Skills: {skills}"
+            line += f"  Required Skills: {skills}\n"
+        
+        # CRITICAL: Communication method
+        if communication:
+            line += f"  **Preferred Communication: {communication}**\n"
+        
+        # Team information
+        if team:
+            line += f"  Team Members: {team}\n"
+        
+        # Summary/description (truncated if too long)
+        if summary:
+            summary_brief = summary[:200] + "..." if len(summary) > 200 else summary
+            line += f"  Description: {summary_brief}\n"
 
         out.append(line)
 
     return "\n".join(out) if out else "No matching listings found."
 
-from datetime import datetime
+# -------------------------------------------------
+# Date filtering helper
+# -------------------------------------------------
 
 def filter_and_group_by_start_date(listings):
     """
