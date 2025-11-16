@@ -1,51 +1,32 @@
-# ==============================
 # Environment files
-# ==============================
 .env
 gcp-credentials.json
-env.yaml
 
-# ==============================
 # Streamlit secrets
-# ==============================
 .streamlit/secrets.toml
+*.toml
 !.streamlit/config.toml
 
-# ==============================
-# TOML and misc configs
-# ==============================
-*.toml
-!config.toml   # keep global config if needed
-
-# ==============================
-# Python cache and temporary files
-# ==============================
+# Python cache
 __pycache__/
+*.py[cod]
+*$py.class
 *.pyc
 *.pyo
 *.pyd
-*.py[cod]
-*$py.class
 *.so
 
-# ==============================
 # Virtual environments
-# ==============================
 venv/
 env/
 .venv/
 
-# ==============================
 # IDE files
-# ==============================
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# ==============================
-# Logs and system files
-# ==============================
+# System files
 .DS_Store
-# Logs
 *.log

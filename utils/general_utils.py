@@ -54,7 +54,7 @@ def render_sidebar_auth(show_role=False):
         st.caption(f"Role: {user_info['role']}")
     
     # Updated to use st.logout() instead of Firebase logout
-    if st.button("🚪 Log Out", width="stretch"):
+    if st.button("Log Out", width="stretch"):
         # Clear session state
         st.session_state.user = None
         # Use Streamlit's native logout
