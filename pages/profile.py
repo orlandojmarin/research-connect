@@ -1,9 +1,10 @@
 # ORLANDO
+# profile.py
 # Profile page where users can view, edit, and delete their account
 # Admins can also manage user roles through the Admin tab
 
 import streamlit as st
-from utils.auth_utils import delete_self_account, go, db, firebaseConfig, change_password
+from utils.auth_utils import delete_self_account, go, db, firebaseConfig
 from utils.profile_utils import (
     get_user_profile, delete_user_data, update_user_profile,
     get_all_users, update_user_role, count_admins
@@ -147,117 +148,11 @@ def render_account_info(profile_data, uid):
                 st.session_state.edit_profile_mode = False
                 st.rerun()
 
-def render_password_reset(email):
-    """Render the password reset section.
-    
-    Args:
-        email (str): User's email address
-    """
-    st.divider()
-    
-    # Initialize session state for password reset mode
-    if "reset_password_mode" not in st.session_state:
-        st.session_state.reset_password_mode = False
-    
-    with st.container(border=True):
-        st.subheader("🔒 Change Password")
-        
-        if not st.session_state.reset_password_mode:
-            st.write("Use a strong, unique password to keep your account safe.")
-            if st.button("🔑 Change Password", key="change_password_btn"):
-                st.session_state.reset_password_mode = True
-                st.rerun()
-        else:
-            st.info("🔑 **Changing Password** - Enter your current and new password below")
-            
-            with st.form("change_password_form"):
-                current_password = st.text_input(
-                    "Current Password *",
-                    type="password",
-                    placeholder="Enter your current password"
-                )
-                
-                new_password = st.text_input(
-                    "New Password *",
-                    type="password",
-                    placeholder="Enter your new password (min. 8 characters)"
-                )
-                
-                confirm_password = st.text_input(
-                    "Confirm New Password *",
-                    type="password",
-                    placeholder="Re-enter your new password"
-                )
-                
-                st.caption("Password must be at least 8 characters and include both letters and numbers.")
-                
-                col_save, col_cancel = st.columns(2)
-                
-                with col_save:
-                    submit_password = st.form_submit_button("💾 Change Password", type="primary", use_container_width=True)
-                
-                with col_cancel:
-                    cancel_password = st.form_submit_button("❌ Cancel", use_container_width=True)
-            
-            # Handle form submission
-            if submit_password:
-                # Collect all validation errors
-                errors = []
-                
-                if not current_password:
-                    errors.append("❌ Please enter your current password.")
-                if not new_password:
-                    errors.append("❌ Please enter a new password.")
-                if not confirm_password:
-                    errors.append("❌ Please confirm your new password.")
-                
-                if new_password and confirm_password and new_password != confirm_password:
-                    errors.append("❌ New passwords do not match.")
-                
-                if new_password and current_password and new_password == current_password:
-                    errors.append("❌ New password must be different from current password.")
-                
-                # Display all errors or proceed with password change
-                if errors:
-                    st.error("**Please fix the following issues:**")
-                    for error in errors:
-                        st.error(error)
-                else:
-                    with st.spinner("Changing password..."):
-                        try:
-                            success, message, new_token = change_password(
-                                email=email,
-                                current_password=current_password,
-                                new_password=new_password
-                            )
-                            
-                            if success:
-                                # Update the session token
-                                if new_token and "user" in st.session_state:
-                                    st.session_state.user["idToken"] = new_token
-                                
-                                st.success(f"✅ {message}")
-                                st.session_state.reset_password_mode = False
-                                
-                                # Show success message for 3 seconds before rerunning
-                                import time
-                                time.sleep(3)
-                                st.rerun()
-                            else:
-                                st.error(f"❌ {message}")
-                        except Exception as e:
-                            st.error(f"❌ An error occurred: {e}")
-            
-            if cancel_password:
-                st.session_state.reset_password_mode = False
-                st.rerun()
-
-def render_danger_zone(uid, id_token):
+def render_danger_zone(uid):
     """Render the account deletion section.
     
     Args:
         uid (str): User ID
-        id_token (str): Firebase ID token
     """
     st.divider()
     st.subheader("⚠️ Danger Zone")
@@ -270,53 +165,23 @@ def render_danger_zone(uid, id_token):
     # If confirmation is active
     if st.session_state.delete_account_confirm:
         st.warning("⚠️ **Are you sure you want to delete your account?** This action cannot be undone!")
-        st.write("**Please enter your password to confirm:**")
-        
-        password = st.text_input("Password", type="password", key="delete_password_confirm")
         
         col_yes, col_no = st.columns([1, 1])
         with col_yes:
             if st.button("Confirm Delete Account", type="primary", key="confirm_delete_account"):
-                if not password:
-                    st.error("Please enter your password to confirm deletion.")
-                else:
-                    with st.spinner("Deleting account..."):
-                        try:
-                            # Re-authenticate to get a fresh token using REST API
-                            import requests
-                            
-                            user = st.session_state.get("user")
-                            email = user.get("email")
-                            
-                            # Sign in again to get fresh token using REST API
-                            api_key = firebaseConfig["apiKey"]
-                            url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}"
-                            payload = {
-                                "email": email,
-                                "password": password,
-                                "returnSecureToken": True
-                            }
-                            response = requests.post(url, json=payload, timeout=10)
-                            response.raise_for_status()
-                            
-                            data = response.json()
-                            fresh_token = data["idToken"]
-                            
-                            # Delete user data and account
-                            delete_user_data(uid)
-                            delete_self_account(fresh_token)
-                            
-                            st.success("Your account has been deleted.")
-                            st.session_state.user = None
-                            st.session_state.delete_account_confirm = False
-                            go("landing")
-                            st.rerun()
-                        except Exception as e:
-                            error_msg = str(e)
-                            if "INVALID_PASSWORD" in error_msg or "INVALID_LOGIN_CREDENTIALS" in error_msg:
-                                st.error("Incorrect password. Please try again.")
-                            else:
-                                st.error(f"Failed to delete account: {e}")
+                with st.spinner("Deleting account..."):
+                    try:
+                        # Delete user data from Firebase
+                        delete_user_data(uid)
+                        
+                        # Clear session and redirect to landing
+                        st.success("Your account has been deleted.")
+                        st.session_state.user = None
+                        st.session_state.delete_account_confirm = False
+                        go("landing")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Failed to delete account: {e}")
         with col_no:
             if st.button("Cancel", key="cancel_delete_account"):
                 st.session_state.delete_account_confirm = False
@@ -524,68 +389,7 @@ def main():
     # Handle missing profile data
     if not profile_data:
         st.warning("No profile data found in database.")
-        st.info("Your authentication account exists, but your profile data is missing. Let's fix that!")
-        
-        # Create profile restoration form
-        with st.form("restore_profile"):
-            st.write("**Enter your information to restore your profile:**")
-            first_name = st.text_input("First Name")
-            last_name = st.text_input("Last Name")
-            submit = st.form_submit_button("Restore Profile")
-            
-            if submit:
-                if first_name and last_name:
-                    from datetime import datetime
-                    
-                    # Determine role based on email
-                    admin_emails = (
-                        "marino1@southernct.edu",
-                        "engt1@southernct.edu",
-                        "muneerb1@southernct.edu",
-                        "hossainm3@southernct.edu"
-                    )
-                    
-                    faculty_emails = (
-                        "abdelraoufa1@southernct.edu",
-                        "alseesis1@southernct.edu",
-                        "antoniosi1@southernct.edu",
-                        "elahia1@southernct.edu",
-                        "islamm2@southernct.edu",
-                        "kimc1@southernct.edu",
-                        "lancorl1@southernct.edu",
-                        "podnarh1@southernct.edu",
-                        "seyedt1@southernct.edu",
-                        "shetaa1@southernct.edu",
-                        "upretya1@southernct.edu",
-                        "wuh2@southernct.edu",
-                        "yuw1@southernct.edu",
-                        "pangy1@southernct.edu",
-                        "lockwoodh1@southernct.edu",
-                        "facultytest@southernct.edu"
-                    )
-                    
-                    # Assign role based on email
-                    if user_info['email'].lower() in admin_emails:
-                        role = "admin"
-                    elif user_info['email'].lower() in faculty_emails:
-                        role = "faculty"
-                    else:
-                        role = "student"
-                    
-                    # Recreate profile data using Firebase Admin SDK syntax
-                    user_ref = db.child("users").child(user_info['uid'])
-                    user_ref.set({
-                        "email": user_info['email'],
-                        "name": f"{first_name} {last_name}".strip(),
-                        "role": role,
-                        "created_at": datetime.utcnow().isoformat() + "Z",
-                        "email_verified": True
-                    })
-                    
-                    st.success("✅ Profile restored! Refreshing page...")
-                    st.rerun()
-                else:
-                    st.error("Please enter both first and last name.")
+        st.info("Your authentication account exists, but your profile data is missing.")
         st.stop()
     
     # Show tabs for admin, single page for others
@@ -595,8 +399,7 @@ def main():
         with tab1:
             render_profile_header()
             render_account_info(profile_data, user_info['uid'])
-            render_password_reset(user_info['email'])
-            render_danger_zone(user_info['uid'], user_info['idToken'])
+            render_danger_zone(user_info['uid'])
         
         with tab2:
             render_admin_user_management()
@@ -604,8 +407,7 @@ def main():
         # Faculty and students see only their profile
         render_profile_header()
         render_account_info(profile_data, user_info['uid'])
-        render_password_reset(user_info['email'])
-        render_danger_zone(user_info['uid'], user_info['idToken'])
+        render_danger_zone(user_info['uid'])
 
 if __name__ == "__main__":
     main()

@@ -1,5 +1,5 @@
-# ORLANDO
 # profile_utils.py
+# ORLANDO
 
 """
 Profile utilities for ResearchConnect SCSU
@@ -18,7 +18,7 @@ def get_user_profile(uid: str):
     """
     try:
         user_ref = db.child("users").child(uid)
-        data = user_ref.get()  # Firebase Admin SDK syntax - no .val() needed
+        data = user_ref.get()
         return data or None
     except Exception as e:
         print(f"Error fetching user profile: {e}")
@@ -47,7 +47,7 @@ def delete_user_data(uid: str):
     """
     try:
         user_ref = db.child("users").child(uid)
-        user_ref.delete()  # Firebase Admin SDK uses .delete() not .remove()
+        user_ref.delete()
     except Exception as e:
         raise RuntimeError(f"Failed to remove user data: {e}")
 
@@ -59,7 +59,7 @@ def get_all_users():
     """
     try:
         users_ref = db.child("users")
-        data = users_ref.get()  # Firebase Admin SDK returns dict directly
+        data = users_ref.get()
         
         if not data:
             return []

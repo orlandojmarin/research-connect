@@ -1,5 +1,6 @@
 # Core app
 streamlit>=1.28.0
+streamlit[auth]>=1.51.0
 python-dotenv>=1.0.1
 
 # Firebase + Storage
@@ -12,10 +13,8 @@ google-cloud-aiplatform>=1.66.0
 google-cloud-discoveryengine>=0.12.0
 vertexai
 
-# RAG + NLP
-sentence-transformers
-faiss-cpu
-numpy
-
 # HTTP
 requests>=2.31.0
+
+# Azure / OAuth login
+Authlib

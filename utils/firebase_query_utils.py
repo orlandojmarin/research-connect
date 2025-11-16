@@ -121,8 +121,11 @@ def search_paid_listings(is_paid: bool, max_results=None):
 
 def search_listings_by_faculty(query, max_results=None):
     """
-    If the query mentions a specific professor name, return listings for that PI.
-    If it’s generic like 'computer science professors', return all CS department listings.
+    Improved faculty search:
+    - Detects professor names
+    - Detects 'computer science' AND 'cs'
+    - Returns ALL CS listings if no specific name matched
+    - Removes randomness and failures
     """
     listings = _get_listings_dict()
     if not listings:
@@ -137,36 +140,47 @@ def search_listings_by_faculty(query, max_results=None):
         if not isinstance(data, dict):
             continue
 
-        pi = data.get("pi", "") or ""
-        dept = data.get("department", "") or ""
-        pi_l = pi.lower()
-        dept_l = dept.lower()
+        pi = (data.get("pi") or "").lower()
+        dept = (data.get("department") or "").lower()
 
         score = 0
 
-        # Any name tokens that appear in PI increase score
+        # ------- 1. Professor name matching -------
         for t in tokens:
-            if t in pi_l:
-                score += 2
+            if t in pi and len(t) > 2:
+                score += 3
 
-        # Department match (e.g., computer science)
-        if "computer" in ql and "science" in ql and "computer science" in dept_l:
+        # ------- 2. Computer Science matching -------
+        is_cs_query = (
+            "computer science" in ql or
+            "cs " in ql or ql.endswith(" cs") or ql.startswith("cs")
+        )
+
+        if is_cs_query and "computer science" in dept:
             score += 2
 
         if score > 0:
             results.append((score, key, data))
 
-    # If query is generic "computer science professors" and nothing matched by PI,
-    # still return all CS listings
-    if not results and "computer" in ql and "science" in ql:
-        for key, data in listings.items():
-            dept = (data or {}).get("department", "").lower()
-            if "computer science" in dept:
-                results.append((1, key, data))
+    # ------- 3. If user asked about CS faculty, return ALL CS listings -------
+    if not results:
+        is_cs_query = (
+            "computer science" in ql or
+            "cs " in ql or ql.endswith(" cs") or ql.startswith("cs")
+        )
+        if is_cs_query:
+            cs_results = []
+            for key, data in listings.items():
+                dept = (data.get("department") or "").lower()
+                if "computer science" in dept:
+                    cs_results.append((1, key, data))
+            if cs_results:
+                results = cs_results
 
     if not results:
         return []
 
+    # Sort by score
     results.sort(reverse=True, key=lambda x: x[0])
 
     docs = [r[2] for r in results]

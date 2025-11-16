@@ -1,16 +1,14 @@
 # ORLANDO (UI) 
 # SANA (Authentication Functionality)
-# Updated with email verification, custom action handler, and password reset
+# Updated with Microsoft OIDC authentication
 # Streamlit Documentation: https://docs.streamlit.io/get-started 
-# run the program with streamlit run home.py
-# firebase action URLs: http://localhost:8501 or https://researchconnect-526731741445.us-central1.run.app
+# run the program with streamlit run home.py or python -m streamlit run home.py
 
 import streamlit as st
 from datetime import datetime
 from utils.home_utils import (
     get_quick_actions, get_feature_descriptions, initialize_session_state,
-    render_landing, render_signup, render_login, render_forgot_password,
-    render_verify_email, render_email_verification_handler, render_password_reset_handler
+    render_landing, verify_scsu_email
 )
 from utils.profile_utils import get_user_profile
 from utils.general_utils import render_sidebar_auth, render_theme_tip
@@ -18,12 +16,17 @@ from utils.general_utils import render_sidebar_auth, render_theme_tip
 # ----- DYNAMIC PAGE CONFIG -----
 def configure_page():
     """Set the Streamlit page configuration with dynamic layout based on auth state."""
-    # Check if user is logged in
-    if "user" not in st.session_state:
-        st.session_state.user = None
+    # Default to centered (for landing page)
+    layout = "centered"
     
-    # Set layout based on authentication state
-    layout = "wide" if st.session_state.user is not None else "centered"
+    # Try to check if user is logged in
+    try:
+        if hasattr(st, 'user') and hasattr(st.user, 'is_logged_in'):
+            if st.user.is_logged_in:
+                layout = "wide"
+    except (AttributeError, Exception):
+        # If OAuth isn't initialized yet or any error occurs, use centered
+        layout = "centered"
     
     st.set_page_config(
         page_title="ResearchConnect SCSU",
@@ -66,7 +69,13 @@ def render_header():
         profile = get_user_profile(uid)
         if profile and "name" in profile:
             # Extract first name if full name exists
-            user_name = profile["name"].split()[0]
+            full_name = profile["name"]
+            # Handle "Last, First" format from Microsoft
+            if "," in full_name:
+                parts = full_name.split(",", 1)
+                user_name = parts[1].strip()  # Get first name (second part)
+            else:
+                user_name = full_name.split()[0]  # Get first word
 
     # Construct greeting message
     if user_name:
@@ -144,58 +153,33 @@ def render_footer():
 
 # ----- AUTH GATE -----
 def auth_gate():
-    """Gate access based on authentication state and handle sidebar visibility."""
-
-    # Check if user clicked verification link or password reset link in email
-    query_params = st.query_params
-    mode = query_params.get("mode")
-    oob_code = query_params.get("oobCode")
+    """Gate access based on Microsoft OIDC authentication."""
     
-    # Handle email verification from link
-    if mode == "verifyEmail" and oob_code:
-        hide_sidebar()
-        render_email_verification_handler(oob_code)
-        st.stop()
-    
-    # Handle password reset from link
-    if mode == "resetPassword" and oob_code:
-        hide_sidebar()
-        render_password_reset_handler(oob_code)
-        st.stop()
-
-    # Ensure session keys exist
+    # Initialize session state
     if "user" not in st.session_state:
         st.session_state.user = None
-    if "page" not in st.session_state:
-        st.session_state.page = "landing"
-
-    # If not logged in, hide sidebar and render auth screens
-    if st.session_state.user is None:
-        hide_sidebar() 
-        page = st.session_state.page
-        if page == "landing":
-            render_landing()
-        elif page == "signup":
-            render_signup()
-        elif page == "login":
-            render_login()
-        elif page == "forgot_password":
-            render_forgot_password()
-        st.stop()
-
-    # Check if email is verified
-    user_session = st.session_state.user
-    if not user_session.get("email_verified", False):
+    
+    # Safely check if user is logged in via Microsoft
+    try:
+        is_logged_in = hasattr(st, 'user') and hasattr(st.user, 'is_logged_in') and st.user.is_logged_in
+    except (AttributeError, Exception):
+        is_logged_in = False
+    
+    # Check if user is logged in via Microsoft
+    if not is_logged_in:
         hide_sidebar()
-        render_verify_email()
+        render_landing()
         st.stop()
-
-    # If logged in and verified, show sidebar with logout
+    
+    # Verify SCSU email and create/update profile
+    from utils.home_utils import verify_scsu_email
+    if not verify_scsu_email():
+        st.stop()
+    
+    # Show sidebar with logout
     with st.sidebar:
         render_sidebar_auth(show_role=True)
         st.divider()
-
-        # Theme tip
         render_theme_tip()
 
 # ----- SIDEBAR HIDING -----
