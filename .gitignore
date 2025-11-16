@@ -3,27 +3,30 @@
 gcp-credentials.json
 
 # Streamlit secrets
+.streamlit/secrets.toml
 *.toml
 !.streamlit/config.toml
-.streamlit/secrets.toml
 
 # Python cache
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyc
+*.pyo
+*.pyd
 *.so
 
 # Virtual environments
 venv/
 env/
-.venv
+.venv/
 
 # IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
-.DS_Store
 
-# Logs
+# System files
+.DS_Store
 *.log

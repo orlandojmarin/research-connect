@@ -1,9 +1,20 @@
+# Core app
 streamlit>=1.28.0
 streamlit[auth]>=1.51.0
-google-cloud-aiplatform>=1.38.0
-google-cloud-discoveryengine>=0.11.0
-google-cloud-storage>=2.10.0
-python-dotenv>=1.0.0
+python-dotenv>=1.0.1
+
+# Firebase + Storage
+pyrebase4
 firebase-admin>=6.2.0
+google-cloud-storage>=2.10.0
+
+# Vertex AI + Discovery Engine
+google-cloud-aiplatform>=1.66.0
+google-cloud-discoveryengine>=0.12.0
+vertexai
+
+# HTTP
 requests>=2.31.0
+
+# Azure / OAuth login
 Authlib

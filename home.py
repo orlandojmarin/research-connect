@@ -1,8 +1,8 @@
-# ORLANDO (UI) 
-# SANA (Authentication Functionality)
+# home.py
+# ORLANDO (UI)
 # Updated with Microsoft OIDC authentication
 # Streamlit Documentation: https://docs.streamlit.io/get-started 
-# run the program with streamlit run home.py or python -m streamlit run home.py
+# run the program with streamlit run home.py OR python -m streamlit run home.py
 
 import streamlit as st
 from datetime import datetime
