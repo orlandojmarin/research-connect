@@ -24,34 +24,30 @@ def get_innovation_hub_info():
     """
     return {
         "description": """
-        SCSU's Innovation Hub advances awareness, experience and skill development, and access to jobs and internships in STEM.
+        SCSU's Innovation Hub advances awareness, experience, skill development, and access to jobs and internships in STEM.
         """,
         "email": "innovation@southernct.edu",
         "website": "https://innovation.southernct.edu/",
         "services": [
-            "Use-Inspired Research",
-            "Educator Professional Development", 
-            "BioPath",
-            "Industry Needs Assessment",
-            "Career Coaching",
-            "Research & Innovation Grant Support",
             "Professional Collaborations & Grant-Funded Projects",
-            "Bioscience Careers Forum",
-            "Connecting Students & Professionals of Color",
-            "SCSU Centers for Research Excellence"
+            "Research & Innovation Grant Support"
         ],
-        "special_programs": [
+        "student_programs": [
             {
-                "name": "Startup Accelerator",
-                "description": "12-week intensive program for early-stage startups with mentorship and funding opportunities"
+                "name": "BioPath",
+                "description": "The Bioscience Academic & Career Pathway (BioPath) program was launched in 2015 as a partnership with the City of New Haven to increase student awareness of, skills, and access to opportunities among Life Science and STEM companies in New Haven and Connecticut more broadly."
             },
             {
-                "name": "Innovation Challenge",
-                "description": "Annual competition where student teams compete for cash prizes and startup funding"
+                "name": "Career Coaching",
+                "description": "The Innovation Hub team offers individualized sessions to support students with career development."
             },
             {
-                "name": "Women in Leadership Academy",
-                "description": "Professional development program focused on leadership skills for women entrepreneurs"
+                "name": "Emerging Technologies Forum",
+                "description": "This conference brings education and industry leaders together with university faculty, teachers, students, and community stakeholders to ensure that today's students are prepared to join the thriving innovatiion ecosystem here in Connecticut."
+            },
+            {
+                "name": "Use-inspired Research",
+                "description": "In the CSCU Center for Nanotechnology, students conduct emerging tech research projects through the Werth Industry Academic Fellowship."
             }
         ]
     }
@@ -116,21 +112,21 @@ def get_stem_centers_info():
                 "Scholarship and funding opportunity notifications"
             ]
         },
-        "other_offices": [
-            {
-                "name": "Environmental Science Center",
-                "description": "Specialized facility supporting environmental research, sustainability studies, and field work coordination.",
-                "location": "Jennings Hall 300",
-                "phone": "(203) 392-6145",
-                "email": "envscience@southernct.edu",
-                "services": [
-                    "Environmental research project support",
-                    "Field study coordination and equipment",
-                    "Sustainability initiative development",
-                    "Laboratory access and training"
-                ]
-            }
-        ]
+        # "other_offices": [
+        #     {
+        #         "name": "Environmental Science Center",
+        #         "description": "Specialized facility supporting environmental research, sustainability studies, and field work coordination.",
+        #         "location": "Jennings Hall 300",
+        #         "phone": "(203) 392-6145",
+        #         "email": "envscience@southernct.edu",
+        #         "services": [
+        #             "Environmental research project support",
+        #             "Field study coordination and equipment",
+        #             "Sustainability initiative development",
+        #             "Laboratory access and training"
+        #         ]
+        #     }
+        # ]
     }
 
 def get_jobs_info():
@@ -196,3 +192,4 @@ def get_resource_usage_stats():
     }
 
 #-----END OF FILE-----
+
