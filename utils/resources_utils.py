@@ -102,14 +102,6 @@ def get_stem_centers_info():
                 "website": "https://www.southernct.edu/stem/centers"
             },
             "services": [
-                # "Individual and group tutoring in STEM subjects",
-                # "Study groups and peer mentoring programs",
-                # "Research opportunity coordination and placement",
-                # "Graduate school preparation and application assistance",
-                # "STEM career counseling and industry connections",
-                # "Workshop series on research methods and skills",
-                # "Equipment and laboratory access for student projects",
-                # "Scholarship and funding opportunity notifications"
                 {
                     "name": "Center for Research on Interface Structures and Phenomena (CRISP)",
                     "description": "Aims to enhance the education of future scientists, science teachers, K-12 students, parents, and the general public."
