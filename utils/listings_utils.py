@@ -285,7 +285,7 @@ def render_edit_form(listing, listing_id, form_key_prefix):
             key=f"edit_skills_{form_key_prefix}_{listing_id}"
         )
         
-        website_urls = st.text_input("Website URL(s)", value=listing.get('website_urls', '') if listing.get('website_urls') != 'n/a' else "", key=f"edit_website_{form_key_prefix}_{listing_id}")
+        website_urls = st.text_input("Website URL", value=listing.get('website_urls', '') if listing.get('website_urls') != 'n/a' else "", key=f"edit_website_{form_key_prefix}_{listing_id}")
         summary = st.text_area("Summary/Description *", value=listing['summary'], key=f"edit_summary_{form_key_prefix}_{listing_id}")
         
         st.write("Preferred Method of Communication *")
@@ -428,7 +428,7 @@ def render_listings(listings, show_edit=False, show_delete=False, show_favorite=
                     
                     st.write(f"**Skills Required:** {listing['skills']}")
                     if "website_urls" in listing and listing["website_urls"] != "n/a":
-                        st.write(f"**Website URL(s):** {listing['website_urls']}")
+                        st.write(f"**Website URL:** {listing['website_urls']}")
                     st.write(f"**Summary/Description:** {listing['summary']}")
                     if "communication" in listing and listing["communication"]:
                         st.write(f"**Preferred Method of Communication:** {listing['communication']}")
