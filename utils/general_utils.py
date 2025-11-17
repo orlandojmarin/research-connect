@@ -3,6 +3,7 @@
 # GENERAL UTILITIES (Common functions used across multiple pages)
 
 import streamlit as st
+from utils.profile_utils import get_user_profile
 
 def auth_gate():
     """
@@ -15,26 +16,44 @@ def auth_gate():
 
 def get_current_user():
     """
-    Get the current user's information from session state.
+    Get the current user's information from the database.
+    Always returns fresh data from Firebase to ensure role and profile stay in sync.
     
     Returns:
-        dict: Dictionary containing uid, email, and role
+        dict: Dictionary containing uid, email, role, and name (fresh from database)
+        None: If user is not logged in
         
     Example:
         user_info = get_current_user()
         print(user_info['email'])  # Access email
         print(user_info['uid'])    # Access user ID
-        print(user_info['role'])   # Access role
+        print(user_info['role'])   # Access role (always fresh from DB)
     """
+    # Check if user is authenticated
     if "user" not in st.session_state or st.session_state.user is None:
         return None
     
-    user = st.session_state.user
+    # Get UID from session state
+    uid = st.session_state.user.get("uid", "")
+    if not uid:
+        return None
+    
+    # Import here to avoid circular imports
+    from utils.profile_utils import get_user_profile
+    
+    # Fetch fresh profile data from database
+    profile_data = get_user_profile(uid)
+    
+    # If database fetch fails, return None (user should re-login)
+    if not profile_data:
+        return None
+    
+    # Return fresh data from database
     return {
-        "uid": user.get("uid", ""),
-        "email": user.get("email", ""),
-        "role": user.get("role", "student"),
-        "name": user.get("name", "")
+        "uid": uid,
+        "email": profile_data.get("email", ""),
+        "role": profile_data.get("role", "student"),  # ← Always fresh from DB
+        "name": profile_data.get("name", "")
     }
 
 def render_sidebar_auth(show_role=False):
