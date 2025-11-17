@@ -1,4 +1,5 @@
 # TATIANA
+# resources_utils.py
 
 """
 Resources utilities for ResearchConnect SCSU
@@ -91,8 +92,7 @@ def get_stem_centers_info():
     return {
         "stem_center": {
             "description": """
-            The STEM Center at SCSU is the hub for Science, Technology, Engineering, and Mathematics 
-            education and research support. We provide academic assistance, research opportunities, 
+            SCSU's STEM Centers and Offices provide academic assistance, research opportunities, 
             and career guidance specifically tailored to STEM students. Our goal is to help you 
             succeed in your STEM coursework, engage in cutting-edge research, and prepare for 
             STEM careers or graduate school.
@@ -102,31 +102,44 @@ def get_stem_centers_info():
                 "website": "https://www.southernct.edu/stem/centers"
             },
             "services": [
-                "Individual and group tutoring in STEM subjects",
-                "Study groups and peer mentoring programs",
-                "Research opportunity coordination and placement",
-                "Graduate school preparation and application assistance",
-                "STEM career counseling and industry connections",
-                "Workshop series on research methods and skills",
-                "Equipment and laboratory access for student projects",
-                "Scholarship and funding opportunity notifications"
+                # "Individual and group tutoring in STEM subjects",
+                # "Study groups and peer mentoring programs",
+                # "Research opportunity coordination and placement",
+                # "Graduate school preparation and application assistance",
+                # "STEM career counseling and industry connections",
+                # "Workshop series on research methods and skills",
+                # "Equipment and laboratory access for student projects",
+                # "Scholarship and funding opportunity notifications"
+                {
+                    "name": "Center for Research on Interface Structures and Phenomena (CRISP)",
+                    "description": "Aims to enhance the education of future scientists, science teachers, K-12 students, parents, and the general public."
+                },
+                {
+                    "name": "STEM Leadership Institute",
+                    "description": "Engages participants in hands-on STEM activities and offers collaborative learning opportunities for school leaders and teachers to participate in a STEM leadership network."
+                },
+                {
+                    "name": "CSCU Center for Nanotechnology",
+                    "description": "Fosters collaborative, interdisciplinary research and educational initiatives/programs in micro- and nanotechnology in collaboration with Yale, UConn, and CT State Community College."
+                },
+                {
+                    "name": "Center for Excellence and Mathematics (CEMS)",
+                    "description": "Fosters outstanding teaching and research through the enhancement of existing campus initiatives, with the goal of increasing the number and quality of students pursuing careers in STEM."
+                },
+                {
+                    "name": "Werth Center for Coastal Marine Studies",
+                    "description": "Provides a means for faculty and students to participate in coastal and marine research and education along Connecticut's urbanized coast and harbors."
+                },
+                {
+                    "name": "SCSU Office of Sustainability",
+                    "description": "Connects students, faculty, and staff with the information, people, and tools needed to make our campus more sustainable."
+                },
+                {
+                    "name": "Research Center on Values in Emerging Science and Technology (RC-VEST)",
+                    "description": "Focuses on issues located at the intersection of science and values as implemented in emerging technologies."
+                }
             ]
         },
-        # "other_offices": [
-        #     {
-        #         "name": "Environmental Science Center",
-        #         "description": "Specialized facility supporting environmental research, sustainability studies, and field work coordination.",
-        #         "location": "Jennings Hall 300",
-        #         "phone": "(203) 392-6145",
-        #         "email": "envscience@southernct.edu",
-        #         "services": [
-        #             "Environmental research project support",
-        #             "Field study coordination and equipment",
-        #             "Sustainability initiative development",
-        #             "Laboratory access and training"
-        #         ]
-        #     }
-        # ]
     }
 
 def get_jobs_info():
