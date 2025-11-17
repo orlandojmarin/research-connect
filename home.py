@@ -1,8 +1,8 @@
 # home.py
-# ORLANDO (UI)
-# Updated with Microsoft OIDC authentication
+# ORLANDO (UI) and Microsoft OIDC authentication
 # Streamlit Documentation: https://docs.streamlit.io/get-started 
-# run the program with streamlit run home.py OR python -m streamlit run home.py
+# run with streamlit run home.py OR python -m streamlit run home.py
+# deployed at https://researchconnect-scsu.streamlit.app/
 
 import streamlit as st
 from datetime import datetime

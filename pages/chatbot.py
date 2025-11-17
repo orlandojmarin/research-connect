@@ -1,5 +1,5 @@
-# ORLANDO (chatbot UI) and SANA (RAG)
 # chatbot.py
+# ORLANDO (chatbot UI and vertex AI integration) and SANA (RAG)
 # Streamlit Documentation: https://docs.streamlit.io/get-started 
 
 import streamlit as st
@@ -87,7 +87,7 @@ def handle_user_input():
     """Handle user input and generate responses"""
     # Chat input at the bottom
     prompt = st.chat_input(
-        placeholder="Ask ResearchAI about research opportunities or campus resources...",
+        placeholder="Ask ResearchAI about research opportunities at SCSU...",
         key="chat_input"
     )
     
