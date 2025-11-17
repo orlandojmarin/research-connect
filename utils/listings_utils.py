@@ -1,6 +1,5 @@
 # TATIANA
 # listings_utils.py
-# updated to include functions previously in listings.py.
 
 import streamlit as st
 from datetime import datetime
@@ -212,16 +211,15 @@ def render_sidebar_filters(all_listings):
         all_listings: List of all listings to extract active faculty from
     """
     st.sidebar.title("Filters")
-    with st.sidebar.expander("Hours per Week", expanded=False):
+    with st.sidebar.expander("Hours per Week", expanded=True):
         hours_filter = st.radio("", ["All", "0 to 5", "6 to 10", "10+"], index=0, key="hours_filter")
-    with st.sidebar.expander("Compensation Type", expanded=False):
+    with st.sidebar.expander("Compensation Type", expanded=True):
         compensation_filter = st.radio("", ["All", "Paid", "Unpaid"], index=0, key="comp_filter")
-    with st.sidebar.expander("Faculty", expanded=False):
+    with st.sidebar.expander("Faculty", expanded=True):
         # Get only faculty who have active listings
         active_faculty = get_active_faculty_names(all_listings)
         faculty_filter = st.radio("", options=["All"] + active_faculty, index=0, key="faculty_filter")
     return hours_filter, compensation_filter, faculty_filter
-
 
 def render_edit_form(listing, listing_id, form_key_prefix):
     """Render the edit form for a listing.
@@ -265,16 +263,16 @@ def render_edit_form(listing, listing_id, form_key_prefix):
         comp_index = 0 if listing['compensation_type'] == "paid" else 1
         compensation_type = st.radio("Compensation Type *", ["Paid", "Unpaid"], index=comp_index, key=f"edit_comp_type_{form_key_prefix}_{listing_id}")
         
-        # Always show pay rate field, but disable when Unpaid is selected
+        # Pay rate field is always optional (no asterisk)
         pay_rate = st.number_input(
-            "Hourly Pay Rate ($) *",
+            "Hourly Pay Rate ($)",
             min_value=16.35,
             value=max(16.35, float(listing.get('pay_rate', 16.35))),
             step=0.01,
             format="%.2f",
-            disabled=(compensation_type == "Unpaid"),
             key=f"edit_pay_rate_{form_key_prefix}_{listing_id}"
         )
+        st.caption("Note: Pay rate will be displayed as N/A when compensation type is unpaid.")
         
         st.write("Skills Required *")
         current_skills = [s.strip() for s in listing['skills'].split(',')] if listing['skills'] else []
@@ -327,8 +325,7 @@ def render_edit_form(listing, listing_id, form_key_prefix):
                 errors.append("Number of Hours per Week")
             if not compensation_type:
                 errors.append("Compensation Type")
-            if compensation_type == "Paid" and (pay_rate is None or pay_rate < 16.35):
-                errors.append("Hourly Pay Rate")
+            # Pay rate is now always optional - no validation needed
             if not skills:
                 errors.append("Skills Required")
             if not summary.strip():
@@ -366,7 +363,6 @@ def render_edit_form(listing, listing_id, form_key_prefix):
                     st.rerun()
                 except Exception as e:
                     st.error(f"Failed to update listing: {e}")
-
 
 def render_listings(listings, show_edit=False, show_delete=False, show_favorite=False, user_info=None, tab_prefix="browse"):
     """Display a list of research opportunity listings in a structured and readable format.

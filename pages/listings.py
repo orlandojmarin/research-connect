@@ -1,6 +1,5 @@
 # TATIANA
 # listings.py
-# refactored. render sidebar filters, render edit form, render listings functions moved to listings_utils.py.
 
 import streamlit as st
 from datetime import datetime
@@ -116,10 +115,6 @@ def main():
 
             col1, col2, col3 = st.columns([1, 3, 1])
             with col2:
-                if st.session_state.get("listing_created", False):
-                    st.success(f"Listing '{st.session_state.listing_title}' successfully created!")
-                    st.session_state.listing_created = False
-
                 with st.container(border=True):
                     form_key = st.session_state.form_counter
                     title = st.text_input("Project Title *", value="", placeholder="ex. Biometric Authentication in Smartphones", key=f"title_input_{form_key}")
@@ -136,16 +131,16 @@ def main():
 
                     compensation_type = st.radio("Compensation Type *", ["Paid", "Unpaid"], index=None, key=f"comp_type_{form_key}")
                     
-                    # Always show pay rate field, but disable when Unpaid is selected or nothing is selected
+                    # Pay rate field is always editable and optional (no asterisk)
                     pay_rate = st.number_input(
-                        "Hourly Pay Rate ($) *",
+                        "Hourly Pay Rate ($)",
                         min_value=16.35,
                         value=16.35,
                         step=0.01,
                         format="%.2f",
-                        disabled=(compensation_type != "Paid"),
                         key=f"pay_rate_input_{form_key}"
                     )
+                    st.caption("Note: Pay rate will be displayed as N/A when compensation type is unpaid.")
 
                     st.write("Skills Required *")
                     skills = st.multiselect(
@@ -187,8 +182,7 @@ def main():
                             errors.append("Number of Hours per Week")
                         if not compensation_type:
                             errors.append("Compensation Type")
-                        if compensation_type == "Paid" and (pay_rate is None or pay_rate < 16.35):
-                            errors.append("Hourly Pay Rate (must be at least $16.35)")
+                        # Pay rate is now optional - no validation needed
                         if not skills:
                             errors.append("Skills Required")
                         if not summary.strip():
@@ -235,6 +229,11 @@ def main():
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"Failed to create listing: {e}")
+                
+                # Show success message below the form
+                if st.session_state.get("listing_created", False):
+                    st.success(f"Listing '{st.session_state.listing_title}' successfully created!")
+                    st.session_state.listing_created = False
 
     # My Listings (all users)
     with tab3:
@@ -317,7 +316,7 @@ def main():
                                     st.warning(f"Are you sure you want to delete **{listing['title']}**?")
                                     col_yes, col_no = st.columns([1, 1])
                                     with col_yes:
-                                        if st.button("🗑️ Confirm Delete", key=f"confirm_my_{listing_id}", use_container_width=True):
+                                        if st.button("🗑️ Confirm Delete", key=f"confirm_my_{listing_id}", width="stretch"):
                                             try:
                                                 delete_listing_from_firebase(listing.get("listing_id"))
                                                 st.success(f"'{listing['title']}' has been deleted.")
@@ -326,7 +325,7 @@ def main():
                                             except Exception as e:
                                                 st.error(f"Failed to delete listing: {e}")
                                     with col_no:
-                                        if st.button("❌ Cancel", key=f"cancel_my_{listing_id}", use_container_width=True):
+                                        if st.button("❌ Cancel", key=f"cancel_my_{listing_id}", width="stretch"):
                                             st.session_state.delete_confirm_my[listing_id] = False
                                             st.rerun()
                                 else:
@@ -335,14 +334,14 @@ def main():
                                     
                                     # Edit button
                                     with button_cols[0]:
-                                        if st.button("✏️ Edit", key=f"edit_my_{listing_id}", use_container_width=True):
+                                        if st.button("✏️ Edit", key=f"edit_my_{listing_id}", width="stretch"):
                                             st.session_state.editing_listing = listing_id
                                             st.session_state.editing_tab = "my"
                                             st.rerun()
 
                                     # Delete button
                                     with button_cols[1]:
-                                        if st.button("🗑️ Delete", key=f"delete_my_{listing_id}", use_container_width=True):
+                                        if st.button("🗑️ Delete", key=f"delete_my_{listing_id}", width="stretch"):
                                             st.session_state.delete_confirm_my[listing_id] = True
                                             st.rerun()
             else:
