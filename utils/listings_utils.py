@@ -4,7 +4,6 @@
 import streamlit as st
 from datetime import datetime
 from utils.auth_utils import db
-from utils.profile_utils import get_user_profile
 
 SKILLS_OPTIONS = [
     "Python",
@@ -18,8 +17,29 @@ SKILLS_OPTIONS = [
     "Software Development",
     "Cloud Computing (AWS, Azure, GCP)",
     "Database Design and Management",
-    "Research Methods / Experimental Design"
+    "Research Methods / Experimental Design",
+    "Bioinformatics / Health Informatics",
+    "Robotics",
+    "UI/UX Design",
+    "Distributed Systems & Parallel Computing",
+    "Quantum",
+    "Cybersecurity"
 ]
+
+SKILLS_OPTIONS_SORTED = sorted(SKILLS_OPTIONS)
+
+def initialize_listing_session_state():
+    """Initialize session state variables for listings page."""
+    if "form_counter" not in st.session_state:
+        st.session_state.form_counter = 0
+    if "form_page" not in st.session_state:
+        st.session_state.form_page = 1
+    if "form_page1_data" not in st.session_state:
+        st.session_state.form_page1_data = {}
+    if "form_page2_data" not in st.session_state:
+        st.session_state.form_page2_data = {}
+    if "delete_confirm_my" not in st.session_state:
+        st.session_state.delete_confirm_my = {}
 
 def save_listing_to_firebase(listing_data):
     """
@@ -136,7 +156,7 @@ def filter_listings(listings, hours_filter, compensation_filter, faculty_filter)
             hours_ok = True
         elif hours_filter == "6 to 10" and 6 <= listing["weekly_hours"] <= 10:
             hours_ok = True
-        elif hours_filter == "10+" and listing["weekly_hours"] > 10:
+        elif hours_filter == "11+" and listing["weekly_hours"] > 10:
             hours_ok = True
 
         # Compensation filter
@@ -212,7 +232,7 @@ def render_sidebar_filters(all_listings):
     """
     st.sidebar.title("Filters")
     with st.sidebar.expander("Hours per Week", expanded=True):
-        hours_filter = st.radio("", ["All", "0 to 5", "6 to 10", "10+"], index=0, key="hours_filter")
+        hours_filter = st.radio("", ["All", "0 to 5", "6 to 10", "11+"], index=0, key="hours_filter")
     with st.sidebar.expander("Compensation Type", expanded=True):
         compensation_filter = st.radio("", ["All", "Paid", "Unpaid"], index=0, key="comp_filter")
     with st.sidebar.expander("Faculty", expanded=True):
@@ -220,6 +240,7 @@ def render_sidebar_filters(all_listings):
         active_faculty = get_active_faculty_names(all_listings)
         faculty_filter = st.radio("", options=["All"] + active_faculty, index=0, key="faculty_filter")
     return hours_filter, compensation_filter, faculty_filter
+
 
 def render_edit_form(listing, listing_id, form_key_prefix):
     """Render the edit form for a listing.
@@ -277,12 +298,12 @@ def render_edit_form(listing, listing_id, form_key_prefix):
         st.write("Skills Required *")
         current_skills = [s.strip() for s in listing['skills'].split(',')] if listing['skills'] else []
         skills = st.multiselect(
-            "Select skills",
-            options=SKILLS_OPTIONS,
-            default=[s for s in current_skills if s in SKILLS_OPTIONS],
+            "Select required skills",
+            options=SKILLS_OPTIONS_SORTED,
+            default=[s for s in current_skills if s in SKILLS_OPTIONS_SORTED],
             placeholder="Select all that apply",
-            label_visibility="collapsed",
-            key=f"edit_skills_{form_key_prefix}_{listing_id}"
+            key=f"edit_skills_{form_key_prefix}_{listing_id}",
+            label_visibility="collapsed"
         )
         
         website_urls = st.text_input("Website URL", value=listing.get('website_urls', '') if listing.get('website_urls') != 'n/a' else "", key=f"edit_website_{form_key_prefix}_{listing_id}")
@@ -291,19 +312,19 @@ def render_edit_form(listing, listing_id, form_key_prefix):
         st.write("Preferred Method of Communication *")
         current_comm = [c.strip() for c in listing.get('communication', '').split(',')] if listing.get('communication') else []
         communication = st.multiselect(
-            "Select communication methods",
+            "Select preferred method of communication",
             options=["Email", "Teams"],
             default=[c for c in current_comm if c in ["Email", "Teams"]],
             placeholder="Select all that apply",
-            label_visibility="collapsed",
-            key=f"edit_comm_{form_key_prefix}_{listing_id}"
+            key=f"edit_comm_{form_key_prefix}_{listing_id}",
+            label_visibility="collapsed"
         )
         
         col1, col2 = st.columns(2)
         with col1:
-            save_button = st.form_submit_button("💾 Save Changes", use_container_width=True)
+            save_button = st.form_submit_button("💾 Save Changes", width="stretch")
         with col2:
-            cancel_button = st.form_submit_button("❌ Cancel", use_container_width=True)
+            cancel_button = st.form_submit_button("❌ Cancel", width="stretch")
         
         if cancel_button:
             st.session_state.editing_listing = None
@@ -364,6 +385,7 @@ def render_edit_form(listing, listing_id, form_key_prefix):
                 except Exception as e:
                     st.error(f"Failed to update listing: {e}")
 
+                    
 def render_listings(listings, show_edit=False, show_delete=False, show_favorite=False, user_info=None, tab_prefix="browse"):
     """Display a list of research opportunity listings in a structured and readable format.
     
@@ -380,7 +402,15 @@ def render_listings(listings, show_edit=False, show_delete=False, show_favorite=
     if show_favorite and user_info:
         favorited_listing_ids = set(get_user_favorite_listings(user_info['uid']))
     
-    col1, col2, col3 = st.columns([1, 3, 1])
+    # Check if we just deleted a listing and show success message
+    if st.session_state.get(f"just_deleted_{tab_prefix}"):
+        deleted_title = st.session_state.get(f"deleted_title_{tab_prefix}", "Listing")
+        st.success(f"'{deleted_title}' has been deleted.")
+        # Clear the flags
+        st.session_state[f"just_deleted_{tab_prefix}"] = False
+        st.session_state[f"deleted_title_{tab_prefix}"] = None
+    
+    col1, col2, col3 = st.columns([1, 4, 1])
     with col2:
         for idx, listing in enumerate(listings):
             listing_id = listing.get("listing_id") or f"{listing['title']}_{idx}"
@@ -403,7 +433,7 @@ def render_listings(listings, show_edit=False, show_delete=False, show_favorite=
                             is_favorited = listing_id in favorited_listing_ids
                             star_icon = "⭐" if is_favorited else "☆"
                             star_label = "Unfavorite" if is_favorited else "Favorite"
-                            if st.button(star_icon, key=f"fav_{tab_prefix}_{listing_id}_{idx}", help=star_label, use_container_width=True):
+                            if st.button(star_icon, key=f"fav_{tab_prefix}_{listing_id}_{idx}", help=star_label, width="stretch"):
                                 try:
                                     toggle_favorite_listing(user_info['uid'], listing_id)
                                     st.rerun()
@@ -445,26 +475,28 @@ def render_listings(listings, show_edit=False, show_delete=False, show_favorite=
                         st.warning(f"Are you sure you want to delete **{listing['title']}**?")
                         col_yes, col_no = st.columns([1, 1])
                         with col_yes:
-                            if st.button("🗑️ Confirm Delete", key=f"confirm_{tab_prefix}_{listing_id}_{idx}", use_container_width=True):
+                            if st.button("🗑️ Confirm Delete", key=f"confirm_{tab_prefix}_{listing_id}_{idx}", width="stretch"):
                                 try:
                                     delete_listing_from_firebase(listing.get("listing_id"))
-                                    st.success(f"'{listing['title']}' has been deleted.")
+                                    # Store deletion info in session state for success message
+                                    st.session_state[f"just_deleted_{tab_prefix}"] = True
+                                    st.session_state[f"deleted_title_{tab_prefix}"] = listing['title']
                                     st.session_state[delete_confirm_key][listing_id] = False
                                     st.rerun()
                                 except Exception as e:
                                     st.error(f"Failed to delete listing: {e}")
                         with col_no:
-                            if st.button("❌ Cancel", key=f"cancel_{tab_prefix}_{listing_id}_{idx}", use_container_width=True):
+                            if st.button("❌ Cancel", key=f"cancel_{tab_prefix}_{listing_id}_{idx}", width="stretch"):
                                 st.session_state[delete_confirm_key][listing_id] = False
                                 st.rerun()
                     else:
-                        # Action buttons row - keeping original narrow width
+                        # Action buttons row
                         button_cols = st.columns([1, 1, 4])
                         
                         # Edit button
                         if show_edit:
                             with button_cols[0]:
-                                if st.button("✏️ Edit", key=f"edit_{tab_prefix}_{listing_id}_{idx}", use_container_width=True):
+                                if st.button("✏️ Edit", key=f"edit_{tab_prefix}_{listing_id}_{idx}", width="stretch"):
                                     st.session_state.editing_listing = listing_id
                                     st.session_state.editing_tab = tab_prefix
                                     st.rerun()
@@ -472,7 +504,7 @@ def render_listings(listings, show_edit=False, show_delete=False, show_favorite=
                         # Delete button
                         if show_delete:
                             with button_cols[1]:
-                                if st.button("🗑️ Delete", key=f"delete_{tab_prefix}_{listing_id}_{idx}", use_container_width=True):
+                                if st.button("🗑️ Delete", key=f"delete_{tab_prefix}_{listing_id}_{idx}", width="stretch"):
                                     st.session_state[delete_confirm_key][listing_id] = True
                                     st.rerun()
 
