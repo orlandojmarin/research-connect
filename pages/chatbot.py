@@ -78,29 +78,6 @@ def render_chat_interface():
             elif message["role"] == "assistant":
                 render_assistant_message(message, idx)
 
-# def render_user_message(message):
-#     """Render a user message in vertical layout with timestamp at bottom-left."""
-#     with st.chat_message("user"):
-#         content_container = st.container()
-#         with content_container:
-#             if "summary" in message and len(message['content']) > 150:
-#                 with st.expander(f"**{message['summary']}**", expanded=False):
-#                     st.write(message['content'])
-#             else:
-#                 st.write(message['content'])
-
-#         # Always show timestamp in the same bottom-left area
-#         st.caption(f"🕒 {message['timestamp'].strftime('%I:%M %p')}")
-
-# def render_assistant_message(message, idx):
-#     """Render an assistant message with timestamp bottom-left aligned."""
-#     with st.chat_message("assistant", avatar="🦉"):
-#         content_container = st.container()
-#         with content_container:
-#             st.markdown(message['content'])
-
-#         st.caption(f"🕒 {message['timestamp'].strftime('%I:%M %p')}")
-
 def render_user_message(message):
     """Render a user message in vertical layout with timestamp at bottom-left."""
     with st.chat_message("user"):
