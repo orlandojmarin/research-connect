@@ -3,6 +3,7 @@
 # Streamlit Documentation: https://docs.streamlit.io/get-started 
 
 import streamlit as st
+import pytz
 from utils.chatbot_utils import (
     initialize_chat_session, get_sidebar_info, clear_conversation,
     add_user_message, add_assistant_message, generate_chatbot_response, log_conversation
@@ -45,6 +46,22 @@ def main():
     render_header()
     render_chat_interface()
     handle_user_input()
+
+def convert_to_eastern_time(utc_timestamp):
+    """Convert UTC timestamp to Eastern Time"""
+    try:
+        eastern = pytz.timezone('America/New_York')
+        
+        # Ensure timestamp is timezone-aware (UTC)
+        if utc_timestamp.tzinfo is None:
+            utc_timestamp = pytz.utc.localize(utc_timestamp)
+        
+        # Convert to Eastern time
+        eastern_time = utc_timestamp.astimezone(eastern)
+        return eastern_time
+    except Exception as e:
+        print(f"Timezone conversion error: {e}")
+        return utc_timestamp
 
 def render_header():
     """Render main page header"""
@@ -95,9 +112,9 @@ def render_user_message(message):
             else:
                 st.write(message['content'])
 
-        # Convert UTC timestamp to local time for display
-        local_time = message['timestamp'].astimezone()
-        st.caption(f"🕒 {local_time.strftime('%I:%M %p')}")
+        # Convert to Eastern Time
+        local_time = convert_to_eastern_time(message['timestamp'])
+        st.caption(f"🕒 {local_time.strftime('%I:%M %p')} ET")
 
 def render_assistant_message(message, idx):
     """Render an assistant message with timestamp bottom-left aligned."""
@@ -106,9 +123,9 @@ def render_assistant_message(message, idx):
         with content_container:
             st.markdown(message['content'])
 
-        # Convert UTC timestamp to local time for display
-        local_time = message['timestamp'].astimezone()
-        st.caption(f"🕒 {local_time.strftime('%I:%M %p')}")
+        # Convert to Eastern Time
+        local_time = convert_to_eastern_time(message['timestamp'])
+        st.caption(f"🕒 {local_time.strftime('%I:%M %p')} ET")
 
 def handle_user_input():
     """Handle user input and generate responses"""
