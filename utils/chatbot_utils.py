@@ -183,6 +183,39 @@ Summary:"""
         words = prompt_text.split()[:7]
         return " ".join(words) + "..."
 
+# def add_user_message(content):
+#     """
+#     Add user message to chat history with optional summary for long prompts
+    
+#     Args:
+#         content (str): User message content
+#     """
+#     message = {
+#         "role": "user",
+#         "content": content,
+#         "timestamp": datetime.datetime.now()
+#     }
+    
+#     # Generate summary if prompt is long (>200 characters)
+#     if len(content) > 200:
+#         message["summary"] = generate_prompt_summary(content)
+    
+#     st.session_state.messages.append(message)
+
+# def add_assistant_message(content):
+#     """
+#     Add assistant message to chat history
+    
+#     Args:
+#         content (str): Assistant message content
+#     """
+#     message = {
+#         "role": "assistant", 
+#         "content": content,
+#         "timestamp": datetime.datetime.now()
+#     }
+#     st.session_state.messages.append(message)
+
 def add_user_message(content):
     """
     Add user message to chat history with optional summary for long prompts
@@ -193,7 +226,7 @@ def add_user_message(content):
     message = {
         "role": "user",
         "content": content,
-        "timestamp": datetime.datetime.now()
+        "timestamp": datetime.datetime.now(datetime.timezone.utc)  # Store in UTC
     }
     
     # Generate summary if prompt is long (>200 characters)
@@ -212,7 +245,7 @@ def add_assistant_message(content):
     message = {
         "role": "assistant", 
         "content": content,
-        "timestamp": datetime.datetime.now()
+        "timestamp": datetime.datetime.now(datetime.timezone.utc)  # Store in UTC
     }
     st.session_state.messages.append(message)
 
