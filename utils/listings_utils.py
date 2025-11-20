@@ -28,6 +28,7 @@ SKILLS_OPTIONS = [
 
 SKILLS_OPTIONS_SORTED = sorted(SKILLS_OPTIONS)
 
+
 def initialize_listing_session_state():
     """Initialize session state variables for listings page."""
     if "form_counter" not in st.session_state:
@@ -41,30 +42,34 @@ def initialize_listing_session_state():
     if "delete_confirm_my" not in st.session_state:
         st.session_state.delete_confirm_my = {}
 
+
 def save_listing_to_firebase(listing_data):
-    """
-    Save a new listing to Firebase Realtime Database using Firebase Admin SDK.
-    Returns the unique listing ID.
+    """Save a new listing to Firebase Realtime Database using Firebase Admin SDK.
+    
+    Args:
+        listing_data: Dictionary of listing data to save
+        
+    Returns:
+        str: The unique listing ID
     """
     try:
-        # Firebase Admin SDK uses push() differently
         listings_ref = db.child("listings")
         new_listing_ref = listings_ref.push()
         new_listing_ref.set(listing_data)
-        
-        # Get the key/ID of the newly created listing
-        listing_id = new_listing_ref.key
-        return listing_id
+        return new_listing_ref.key
     except Exception as e:
         raise RuntimeError(f"Failed to save listing: {e}")
 
+
 def update_listing_in_firebase(listing_id, updated_data):
-    """
-    Update an existing listing in Firebase Realtime Database.
+    """Update an existing listing in Firebase Realtime Database.
     
     Args:
         listing_id: The unique listing ID
         updated_data: Dictionary of fields to update
+        
+    Returns:
+        bool: True if successful
     """
     try:
         listing_ref = db.child("listings").child(listing_id)
@@ -72,15 +77,17 @@ def update_listing_in_firebase(listing_id, updated_data):
         return True
     except Exception as e:
         raise RuntimeError(f"Failed to update listing {listing_id}: {e}")
+
     
 def get_all_listings_from_firebase():
-    """
-    Retrieve all listings from Firebase Realtime Database using Firebase Admin SDK.
-    Returns a list of listing dictionaries.
+    """Retrieve all listings from Firebase Realtime Database using Firebase Admin SDK.
+    
+    Returns:
+        list: List of listing dictionaries with listing_id included
     """
     try:
         listings_ref = db.child("listings")
-        data = listings_ref.get()  # Firebase Admin SDK returns dict directly, no .val() needed
+        data = listings_ref.get()
         
         if not data:
             return []
@@ -97,9 +104,13 @@ def get_all_listings_from_firebase():
 
 
 def get_user_listings_from_firebase(uid):
-    """
-    Retrieve all listings created by a specific user.
-    Returns a list of listing dictionaries.
+    """Retrieve all listings created by a specific user.
+    
+    Args:
+        uid: User's unique ID
+        
+    Returns:
+        list: List of listing dictionaries created by the user
     """
     try:
         all_listings = get_all_listings_from_firebase()
@@ -110,27 +121,30 @@ def get_user_listings_from_firebase(uid):
 
 
 def delete_listing_from_firebase(listing_id):
-    """
-    Delete a listing from Firebase Realtime Database by its unique listing ID.
+    """Delete a listing from Firebase Realtime Database by its unique listing ID.
+    
+    Args:
+        listing_id: The unique listing ID to delete
+        
+    Returns:
+        bool: True if successful
     """
     try:
         listing_ref = db.child("listings").child(listing_id)
-        listing_ref.delete()  # Firebase Admin SDK uses .delete() not .remove()
+        listing_ref.delete()
         return True
     except Exception as e:
         raise RuntimeError(f"Failed to delete listing {listing_id}: {e}")
 
 
 def get_active_faculty_names(listings):
-    """
-    Extract unique faculty names (pi field) from a list of listings.
-    Returns a sorted list of faculty names who have active listings.
+    """Extract unique faculty names (pi field) from a list of listings.
     
     Args:
         listings: List of listing dictionaries
     
     Returns:
-        list: Sorted list of unique faculty names
+        list: Sorted list of unique faculty names who have active listings
     """
     faculty_names = set()
     for listing in listings:
@@ -142,8 +156,16 @@ def get_active_faculty_names(listings):
 
 
 def filter_listings(listings, hours_filter, compensation_filter, faculty_filter):
-    """
-    Filters listings based on sidebar selections.
+    """Filter listings based on sidebar selections.
+    
+    Args:
+        listings: List of all listings
+        hours_filter: Selected hours per week filter
+        compensation_filter: Selected compensation type filter
+        faculty_filter: Selected faculty filter
+        
+    Returns:
+        list: Filtered list of listings
     """
     filtered = []
 
@@ -172,8 +194,8 @@ def filter_listings(listings, hours_filter, compensation_filter, faculty_filter)
 
 
 def toggle_favorite_listing(uid, listing_id):
-    """
-    Toggle a listing as favorite/unfavorite for a user using Firebase Admin SDK.
+    """Toggle a listing as favorite/unfavorite for a user using Firebase Admin SDK.
+    
     Stores favorites under users/{uid}/favorite_listings/{listing_id}
     
     Args:
@@ -184,7 +206,6 @@ def toggle_favorite_listing(uid, listing_id):
         bool: True if favorited, False if unfavorited
     """
     try:
-        # Check if already favorited
         favorite_ref = db.child("users").child(uid).child("favorite_listings").child(listing_id)
         current_value = favorite_ref.get()
         
@@ -201,8 +222,7 @@ def toggle_favorite_listing(uid, listing_id):
 
 
 def get_user_favorite_listings(uid):
-    """
-    Get all listing IDs that a user has favorited using Firebase Admin SDK.
+    """Get all listing IDs that a user has favorited using Firebase Admin SDK.
     
     Args:
         uid: User's unique ID
@@ -217,7 +237,6 @@ def get_user_favorite_listings(uid):
         if not data:
             return []
         
-        # Return list of listing IDs
         return list(data.keys())
     except Exception as e:
         print(f"Error fetching favorite listings: {e}")
@@ -229,16 +248,22 @@ def render_sidebar_filters(all_listings):
     
     Args:
         all_listings: List of all listings to extract active faculty from
+        
+    Returns:
+        tuple: (hours_filter, compensation_filter, faculty_filter)
     """
     st.sidebar.title("Filters")
+    
     with st.sidebar.expander("Hours per Week", expanded=True):
         hours_filter = st.radio("", ["All", "0 to 5", "6 to 10", "11+"], index=0, key="hours_filter")
+    
     with st.sidebar.expander("Compensation Type", expanded=True):
         compensation_filter = st.radio("", ["All", "Paid", "Unpaid"], index=0, key="comp_filter")
+    
     with st.sidebar.expander("Faculty", expanded=True):
-        # Get only faculty who have active listings
         active_faculty = get_active_faculty_names(all_listings)
         faculty_filter = st.radio("", options=["All"] + active_faculty, index=0, key="faculty_filter")
+    
     return hours_filter, compensation_filter, faculty_filter
 
 
@@ -253,6 +278,7 @@ def render_edit_form(listing, listing_id, form_key_prefix):
     st.subheader(f"Editing: {listing['title']}")
     
     with st.form(key=f"edit_form_{form_key_prefix}_{listing_id}"):
+        # Basic Information
         title = st.text_input("Project Title *", value=listing['title'], key=f"edit_title_{form_key_prefix}_{listing_id}")
         team = st.text_input("Additional Collaborators", value=listing.get('team', 'n/a') if listing.get('team') != 'n/a' else "", key=f"edit_team_{form_key_prefix}_{listing_id}")
         
@@ -269,7 +295,6 @@ def render_edit_form(listing, listing_id, form_key_prefix):
         
         start_date = st.date_input("Start Date *", value=start_date_obj, key=f"edit_start_date_{form_key_prefix}_{listing_id}")
         
-        # If start_date is None (user cleared it), use today's date
         if start_date is None:
             start_date = datetime.now().date()
         
@@ -281,10 +306,10 @@ def render_edit_form(listing, listing_id, form_key_prefix):
         
         weekly_hours = st.number_input("Number of Hours per Week *", min_value=1, value=listing['weekly_hours'], step=1, key=f"edit_hours_{form_key_prefix}_{listing_id}")
         
+        # Compensation
         comp_index = 0 if listing['compensation_type'] == "paid" else 1
         compensation_type = st.radio("Compensation Type *", ["Paid", "Unpaid"], index=comp_index, key=f"edit_comp_type_{form_key_prefix}_{listing_id}")
         
-        # Pay rate field is always optional (no asterisk)
         pay_rate = st.number_input(
             "Hourly Pay Rate ($)",
             min_value=16.35,
@@ -295,6 +320,7 @@ def render_edit_form(listing, listing_id, form_key_prefix):
         )
         st.caption("Note: Pay rate will be displayed as N/A when compensation type is unpaid.")
         
+        # Skills
         st.write("Skills Required *")
         current_skills = [s.strip() for s in listing['skills'].split(',')] if listing['skills'] else []
         skills = st.multiselect(
@@ -306,9 +332,11 @@ def render_edit_form(listing, listing_id, form_key_prefix):
             label_visibility="collapsed"
         )
         
+        # Additional details
         website_urls = st.text_input("Website URL", value=listing.get('website_urls', '') if listing.get('website_urls') != 'n/a' else "", key=f"edit_website_{form_key_prefix}_{listing_id}")
         summary = st.text_area("Summary/Description *", value=listing['summary'], key=f"edit_summary_{form_key_prefix}_{listing_id}")
         
+        # Communication
         st.write("Preferred Method of Communication *")
         current_comm = [c.strip() for c in listing.get('communication', '').split(',')] if listing.get('communication') else []
         communication = st.multiselect(
@@ -320,6 +348,7 @@ def render_edit_form(listing, listing_id, form_key_prefix):
             label_visibility="collapsed"
         )
         
+        # Form buttons
         col1, col2 = st.columns(2)
         with col1:
             save_button = st.form_submit_button("💾 Save Changes", width="stretch")
@@ -331,6 +360,7 @@ def render_edit_form(listing, listing_id, form_key_prefix):
             st.rerun()
         
         if save_button:
+            # Validate required fields
             errors = []
             if not title.strip():
                 errors.append("Project Title")
@@ -346,7 +376,6 @@ def render_edit_form(listing, listing_id, form_key_prefix):
                 errors.append("Number of Hours per Week")
             if not compensation_type:
                 errors.append("Compensation Type")
-            # Pay rate is now always optional - no validation needed
             if not skills:
                 errors.append("Skills Required")
             if not summary.strip():
@@ -357,6 +386,7 @@ def render_edit_form(listing, listing_id, form_key_prefix):
             if errors:
                 st.error(f"Please fill out the following required fields: {', '.join(errors)}")
             else:
+                # Prepare updated listing data
                 start_date_formatted = start_date.strftime("%B %d, %Y")
                 skills_str = ", ".join(skills)
                 communication_str = ", ".join(communication)
@@ -385,14 +415,43 @@ def render_edit_form(listing, listing_id, form_key_prefix):
                 except Exception as e:
                     st.error(f"Failed to update listing: {e}")
 
-                    
+
+def render_listing_details(listing):
+    """Render the display details for a single listing.
+    
+    Args:
+        listing: Listing data dictionary
+    """
+    st.write(f"Posted by {listing['pi']} on {listing['date_posted']}")
+    st.write(f"**Additional Collaborators:** {listing['team']}")
+    st.write(f"**Department/Lab:** {listing['department']}")
+    st.write(f"**Number of Openings:** {listing['openings']}")
+    st.write(f"**Start Date:** {listing['start_date']}")
+    st.write(f"**Duration:** {listing['duration']}")
+    st.write(f"**Number of Hours per Week:** {listing['weekly_hours']}")
+    
+    # Display pay rate based on compensation type
+    if listing['compensation_type'] == 'paid':
+        st.write(f"**Hourly Pay Rate:** ${listing['pay_rate']:.2f}")
+    else:
+        st.write(f"**Hourly Pay Rate:** N/A")
+    
+    st.write(f"**Skills Required:** {listing['skills']}")
+    if "website_urls" in listing and listing["website_urls"] != "n/a":
+        st.write(f"**Website URL:** {listing['website_urls']}")
+    st.write(f"**Summary/Description:** {listing['summary']}")
+    if "communication" in listing and listing["communication"]:
+        st.write(f"**Preferred Method of Communication:** {listing['communication']}")
+    st.write("")
+
+
 def render_listings(listings, show_edit=False, show_delete=False, show_favorite=False, user_info=None, tab_prefix="browse"):
     """Display a list of research opportunity listings in a structured and readable format.
     
     Args:
         listings: List of listing dictionaries to display
         show_edit: Whether to show edit buttons
-        show_delete: Whether to show delete buttons (admin only in Browse tab)
+        show_delete: Whether to show delete buttons
         show_favorite: Whether to show favorite/star button
         user_info: Current user information for permission checks
         tab_prefix: Prefix for session state keys to avoid conflicts between tabs
@@ -442,27 +501,8 @@ def render_listings(listings, show_edit=False, show_delete=False, show_favorite=
                     else:
                         st.subheader(listing["title"])
                     
-                    st.write(f"Posted by {listing['pi']} on {listing['date_posted']}")
-                    st.write(f"**Additional Collaborators:** {listing['team']}")
-                    st.write(f"**Department/Lab:** {listing['department']}")
-                    st.write(f"**Number of Openings:** {listing['openings']}")
-                    st.write(f"**Start Date:** {listing['start_date']}")
-                    st.write(f"**Duration:** {listing['duration']}")
-                    st.write(f"**Number of Hours per Week:** {listing['weekly_hours']}")
-                    
-                    # Display pay rate based on compensation type
-                    if listing['compensation_type'] == 'paid':
-                        st.write(f"**Hourly Pay Rate:** ${listing['pay_rate']:.2f}")
-                    else:
-                        st.write(f"**Hourly Pay Rate:** N/A")
-                    
-                    st.write(f"**Skills Required:** {listing['skills']}")
-                    if "website_urls" in listing and listing["website_urls"] != "n/a":
-                        st.write(f"**Website URL:** {listing['website_urls']}")
-                    st.write(f"**Summary/Description:** {listing['summary']}")
-                    if "communication" in listing and listing["communication"]:
-                        st.write(f"**Preferred Method of Communication:** {listing['communication']}")
-                    st.write("")
+                    # Render listing details
+                    render_listing_details(listing)
                     
                     # Initialize session state for confirmation if not present
                     delete_confirm_key = f"delete_confirm_{tab_prefix}"
