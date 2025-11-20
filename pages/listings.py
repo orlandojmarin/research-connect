@@ -9,10 +9,8 @@ from utils.listings_utils import (
     save_listing_to_firebase,
     get_all_listings_from_firebase,
     get_user_listings_from_firebase,
-    delete_listing_from_firebase,
     get_user_favorite_listings,
     render_sidebar_filters,
-    render_edit_form,
     render_listings,
     SKILLS_OPTIONS_SORTED
 )
@@ -474,59 +472,6 @@ def render_favorite_listings(user_info):
         st.info("You haven't favorited any listings yet. Click the ☆ icon on listings in the Browse tab to save them here!")
 
 
-def render_my_listings_display(listing, listing_id, idx):
-    """Render the display view of a single listing in My Listings tab.
-    
-    Args:
-        listing: Listing data dictionary
-        listing_id: Unique listing ID
-        idx: Index for unique key generation
-    """
-    
-    st.subheader(listing["title"])
-    st.write(f"Posted by {listing['pi']} on {listing['date_posted']}")
-    st.write(f"**Additional Collaborators:** {listing['team']}")
-    st.write(f"**Department/Lab:** {listing['department']}")
-    st.write(f"**Number of Openings:** {listing['openings']}")
-    st.write(f"**Start Date:** {listing['start_date']}")
-    st.write(f"**Duration:** {listing['duration']}")
-    st.write(f"**Number of Hours per Week:** {listing['weekly_hours']}")
-    
-    # Display pay rate based on compensation type
-    if listing['compensation_type'] == 'paid':
-        st.write(f"**Hourly Pay Rate:** ${listing['pay_rate']:.2f}")
-    else:
-        st.write(f"**Hourly Pay Rate:** N/A")
-    
-    st.write(f"**Skills Required:** {listing['skills']}")
-    if "website_urls" in listing and listing["website_urls"] != "n/a":
-        st.write(f"**Website URL:** {listing['website_urls']}")
-    st.write(f"**Summary/Description:** {listing['summary']}")
-    if "communication" in listing and listing["communication"]:
-        st.write(f"**Preferred Method of Communication:** {listing['communication']}")
-    st.write("")
-
-def render_listing_action_buttons(listing_id):
-    """Render edit and delete action buttons for a listing.
-    
-    Args:
-        listing_id: Unique listing ID
-    """
-    button_cols = st.columns([1, 1, 4])
-    
-    # Edit button
-    with button_cols[0]:
-        if st.button("✏️ Edit", key=f"edit_my_{listing_id}", width="stretch"):
-            st.session_state.editing_listing = listing_id
-            st.session_state.editing_tab = "my"
-            st.rerun()
-
-    # Delete button
-    with button_cols[1]:
-        if st.button("🗑️ Delete", key=f"delete_my_{listing_id}", width="stretch"):
-            st.session_state.delete_confirm_my[listing_id] = True
-            st.rerun()
-
 def render_my_created_listings(user_info):
     """Render created listings for faculty/admin.
     
@@ -550,6 +495,7 @@ def render_my_created_listings(user_info):
         )
     else:
         st.info("You haven't created any listings yet.")
+
 
 def render_my_listings_tab(user_info):
     """Render the My Listings tab (favorites for students, created for faculty/admin).
