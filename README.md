@@ -19,6 +19,7 @@ This project was developed as a capstone project by:
 - **Sana Muneer** - RAG Implementation and Quality Assurance
 
 **Course**: Computer Science Project Seminar - CSC 400
+
 **Institution**: Southern Connecticut State University
 
 ## Features
