@@ -583,7 +583,6 @@ def create_account(email: str, password: str, first_name: str, last_name: str):
     admin_emails = (
         "marino1@southernct.edu",
         "engt1@southernct.edu",
-        "muneerb1@southernct.edu",
         "hossainm3@southernct.edu"
     )
 
@@ -602,8 +601,7 @@ def create_account(email: str, password: str, first_name: str, last_name: str):
         "wuh2@southernct.edu",
         "yuw1@southernct.edu",
         "pangy1@southernct.edu",
-        "lockwoodh1@southernct.edu",
-        "facultytest@southernct.edu"
+        "lockwoodh1@southernct.edu"
     )
 
     # Assign role based on email
